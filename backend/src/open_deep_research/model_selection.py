@@ -59,7 +59,7 @@ DEFAULT_MODELS: Dict[Provider, Dict[Role, str]] = {
     },
     Provider.GOOGLE: {
         Role.SUMMARIZATION_MODEL: "google_genai:gemini-2.5-flash",
-        Role.RESEARCH_MODEL: "google_genai:gemini-2.5-pro",
+        Role.RESEARCH_MODEL: "google_genai:gemini-2.5-flash",
         Role.COMPRESSION_MODEL: "google_genai:gemini-2.5-pro",
         Role.FINAL_REPORT_MODEL: "google_genai:gemini-2.5-pro",
     },
@@ -85,9 +85,13 @@ def _read_api_keys_from_config(config: RunnableConfig) -> Dict[str, str | None]:
     return keys
 
 
-def detect_available_providers(config: RunnableConfig) -> Tuple[Dict[Provider, bool], List[Provider]]:
+def detect_available_providers(
+    config: RunnableConfig,
+) -> Tuple[Dict[Provider, bool], List[Provider]]:
     keys = _read_api_keys_from_config(config)
-    availability = {provider: bool(keys.get(env_key)) for provider, env_key in PROVIDER_KEYS.items()}
+    availability = {
+        provider: bool(keys.get(env_key)) for provider, env_key in PROVIDER_KEYS.items()
+    }
     available_list = [p for p, ok in availability.items() if ok]
     return availability, available_list
 
@@ -201,7 +205,9 @@ def resolve_models(config: RunnableConfig) -> Dict[Role, str]:
         effective_by_role[role] = DEFAULT_MODELS[fallback_provider][role]
 
     # Convert to string-keyed dict for downstream callers
-    effective_str: Dict[str, str] = {role.value: model for role, model in effective_by_role.items()}
+    effective_str: Dict[str, str] = {
+        role.value: model for role, model in effective_by_role.items()
+    }
 
     logging.info(
         "Model auto-selection: available=%s, order=%s, effective=%s",
