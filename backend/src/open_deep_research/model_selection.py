@@ -17,41 +17,51 @@ from __future__ import annotations
 import logging
 import os
 from typing import Dict, List, Tuple
+from enum import Enum
 
 from langchain_core.runnables import RunnableConfig
 
 from open_deep_research.configuration import Configuration
 
 
-Provider = str  # "openai" | "anthropic" | "google"
-Role = str  # "summarization_model" | "research_model" | "compression_model" | "final_report_model"
+class Provider(Enum):
+    OPENAI = "openai"
+    ANTHROPIC = "anthropic"
+    GOOGLE = "google"
+
+
+class Role(Enum):
+    SUMMARIZATION_MODEL = "summarization_model"
+    RESEARCH_MODEL = "research_model"
+    COMPRESSION_MODEL = "compression_model"
+    FINAL_REPORT_MODEL = "final_report_model"
 
 
 PROVIDER_KEYS: Dict[Provider, str] = {
-    "openai": "OPENAI_API_KEY",
-    "anthropic": "ANTHROPIC_API_KEY",
-    "google": "GOOGLE_API_KEY",
+    Provider.OPENAI: "OPENAI_API_KEY",
+    Provider.ANTHROPIC: "ANTHROPIC_API_KEY",
+    Provider.GOOGLE: "GOOGLE_API_KEY",
 }
 
 # Default models per provider per role
 DEFAULT_MODELS: Dict[Provider, Dict[Role, str]] = {
-    "openai": {
-        "summarization_model": "openai:gpt-4.1-mini",
-        "research_model": "openai:gpt-4.1",
-        "compression_model": "openai:gpt-4.1",
-        "final_report_model": "openai:gpt-4.1",
+    Provider.OPENAI: {
+        Role.SUMMARIZATION_MODEL: "openai:gpt-4.1-mini",
+        Role.RESEARCH_MODEL: "openai:gpt-4.1",
+        Role.COMPRESSION_MODEL: "openai:gpt-4.1",
+        Role.FINAL_REPORT_MODEL: "openai:gpt-4.1",
     },
-    "anthropic": {
-        "summarization_model": "anthropic:claude-3-5-haiku",
-        "research_model": "anthropic:claude-3-7-sonnet",
-        "compression_model": "anthropic:claude-3-7-sonnet",
-        "final_report_model": "anthropic:claude-3-7-sonnet",
+    Provider.ANTHROPIC: {
+        Role.SUMMARIZATION_MODEL: "anthropic:claude-3-5-haiku",
+        Role.RESEARCH_MODEL: "anthropic:claude-3-7-sonnet",
+        Role.COMPRESSION_MODEL: "anthropic:claude-3-7-sonnet",
+        Role.FINAL_REPORT_MODEL: "anthropic:claude-3-7-sonnet",
     },
-    "google": {
-        "summarization_model": "google_genai:gemini-2.5-flash",
-        "research_model": "google_genai:gemini-2.5-pro",
-        "compression_model": "google_genai:gemini-2.5-pro",
-        "final_report_model": "google_genai:gemini-2.5-pro",
+    Provider.GOOGLE: {
+        Role.SUMMARIZATION_MODEL: "google_genai:gemini-2.5-flash",
+        Role.RESEARCH_MODEL: "google_genai:gemini-2.5-pro",
+        Role.COMPRESSION_MODEL: "google_genai:gemini-2.5-pro",
+        Role.FINAL_REPORT_MODEL: "google_genai:gemini-2.5-pro",
     },
 }
 
@@ -87,11 +97,11 @@ def _provider_from_model(model: str | None) -> Provider | None:
         return None
     model_l = str(model).lower()
     if model_l.startswith("openai:"):
-        return "openai"
+        return Provider.OPENAI
     if model_l.startswith("anthropic:"):
-        return "anthropic"
-    if model_l.startswith("google"):
-        return "google"
+        return Provider.ANTHROPIC
+    if model_l.startswith("google") or model_l.startswith("google_genai:"):
+        return Provider.GOOGLE
     return None
 
 
@@ -99,24 +109,36 @@ def _preference_order() -> List[Provider]:
     # Full order has priority
     order_str = os.getenv("PREFERRED_PROVIDER_ORDER")
     if order_str:
-        order = [p.strip().lower() for p in order_str.split(",") if p.strip()]
-        return [p for p in order if p in PROVIDER_KEYS]
+        order_strs = [p.strip().lower() for p in order_str.split(",") if p.strip()]
+        mapped: List[Provider] = []
+        for s in order_strs:
+            if s == Provider.OPENAI.value:
+                mapped.append(Provider.OPENAI)
+            elif s == Provider.ANTHROPIC.value:
+                mapped.append(Provider.ANTHROPIC)
+            elif s == Provider.GOOGLE.value:
+                mapped.append(Provider.GOOGLE)
+        return mapped
 
     # Single preferred provider fallback
     preferred = os.getenv("PREFERRED_LLM_PROVIDER")
-    base_order = ["openai", "anthropic", "google"]
-    if preferred and preferred.lower() in PROVIDER_KEYS:
+    base_order = [Provider.OPENAI, Provider.ANTHROPIC, Provider.GOOGLE]
+    if preferred:
         p = preferred.lower()
-        return [p] + [x for x in base_order if x != p]
+        try:
+            pref = Provider(p)
+            return [pref] + [x for x in base_order if x != pref]
+        except ValueError:
+            pass
     return base_order
 
 
 def _get_user_models(configurable: Configuration) -> Dict[Role, str | None]:
     return {
-        "summarization_model": configurable.summarization_model,
-        "research_model": configurable.research_model,
-        "compression_model": configurable.compression_model,
-        "final_report_model": configurable.final_report_model,
+        Role.SUMMARIZATION_MODEL: configurable.summarization_model,
+        Role.RESEARCH_MODEL: configurable.research_model,
+        Role.COMPRESSION_MODEL: configurable.compression_model,
+        Role.FINAL_REPORT_MODEL: configurable.final_report_model,
     }
 
 
@@ -149,40 +171,42 @@ def resolve_models(config: RunnableConfig) -> Dict[Role, str]:
             "or disable AUTO_MODEL_SELECTION."
         )
 
-    effective: Dict[Role, str] = {}
+    effective_by_role: Dict[Role, str] = {}
 
     for role, user_model in user_models.items():
         user_provider = _provider_from_model(user_model)
         if user_model and user_provider:
             if availability.get(user_provider):
                 # User model is compatible with available provider
-                effective[role] = user_model  # type: ignore[assignment]
+                effective_by_role[role] = user_model  # type: ignore[assignment]
                 continue
             elif strict:
                 raise ValueError(
-                    f"STRICT_PROVIDER_MATCH is true and provider for {role} ('{user_provider}') "
+                    f"STRICT_PROVIDER_MATCH is true and provider for {role.value} ('{user_provider.value}') "
                     f"is not available. Add {PROVIDER_KEYS[user_provider]} or change the model."
                 )
             else:
                 logging.warning(
-                    f"Provider for configured {role} ('{user_provider}') not available. Falling back."
+                    f"Provider for configured {role.value} ('{user_provider.value}') not available. Falling back."
                 )
 
         # Fallback: pick first available provider in preference order
         fallback_provider = next((p for p in order if availability.get(p)), None)
         if not fallback_provider:
             raise ValueError(
-                f"No available providers for role {role}. Set one of the provider API keys or "
+                f"No available providers for role {role.value}. Set one of the provider API keys or "
                 f"disable AUTO_MODEL_SELECTION."
             )
 
-        effective[role] = DEFAULT_MODELS[fallback_provider][role]
+        effective_by_role[role] = DEFAULT_MODELS[fallback_provider][role]
+
+    # Convert to string-keyed dict for downstream callers
+    effective_str: Dict[str, str] = {role.value: model for role, model in effective_by_role.items()}
 
     logging.info(
         "Model auto-selection: available=%s, order=%s, effective=%s",
-        available_list,
-        order,
-        effective,
+        [p.value for p in available_list],
+        [p.value for p in order],
+        effective_str,
     )
-    return effective
-
+    return effective_str
