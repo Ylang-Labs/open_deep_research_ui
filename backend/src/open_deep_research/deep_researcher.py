@@ -41,6 +41,8 @@ from open_deep_research.state import (
 )
 from open_deep_research.utils import (
     anthropic_websearch_called,
+    deduplicate_urls,
+    extract_urls_from_tool_message,
     get_all_tools,
     get_api_key_for_model,
     get_model_token_limit,
@@ -263,7 +265,8 @@ async def supervisor_tools(state: SupervisorState, config: RunnableConfig) -> Co
             goto=END,
             update={
                 "notes": get_notes_from_tool_calls(supervisor_messages),
-                "research_brief": state.get("research_brief", "")
+                "research_brief": state.get("research_brief", ""),
+                "reference_urls": state.get("reference_urls", [])
             }
         )
     
@@ -334,6 +337,17 @@ async def supervisor_tools(state: SupervisorState, config: RunnableConfig) -> Co
             
             if raw_notes_concat:
                 update_payload["raw_notes"] = [raw_notes_concat]
+            
+            # Aggregate reference URLs from all research results
+            all_urls = []
+            for observation in tool_results:
+                urls = observation.get("reference_urls", [])
+                all_urls.extend(urls)
+            
+            if all_urls:
+                # Deduplicate URLs and add to update payload
+                unique_urls = deduplicate_urls([all_urls])
+                update_payload["reference_urls"] = unique_urls
                 
         except Exception as e:
             # Handle research execution errors
@@ -343,7 +357,8 @@ async def supervisor_tools(state: SupervisorState, config: RunnableConfig) -> Co
                     goto=END,
                     update={
                         "notes": get_notes_from_tool_calls(supervisor_messages),
-                        "research_brief": state.get("research_brief", "")
+                        "research_brief": state.get("research_brief", ""),
+                        "reference_urls": state.get("reference_urls", [])
                     }
                 )
     
@@ -395,6 +410,7 @@ async def researcher(state: ResearcherState, config: RunnableConfig) -> Command[
         )
     
     # Step 2: Configure the researcher model with tools
+    effective_models = resolve_models(config)
     research_model_config = {
         "model": effective_models["research_model"],
         "max_tokens": configurable.research_model_max_tokens,
@@ -485,15 +501,25 @@ async def researcher_tools(state: ResearcherState, config: RunnableConfig) -> Co
     ]
     observations = await asyncio.gather(*tool_execution_tasks)
     
-    # Create tool messages from execution results
-    tool_outputs = [
-        ToolMessage(
-            content=observation,
-            name=tool_call["name"],
+    # Create tool messages from execution results and extract URLs
+    tool_outputs = []
+    extracted_urls = []
+    
+    for observation, tool_call in zip(observations, tool_calls):
+        tool_name = tool_call["name"]
+        tool_content = str(observation)
+        
+        # Create tool message
+        tool_message = ToolMessage(
+            content=tool_content,
+            name=tool_name,
             tool_call_id=tool_call["id"]
-        ) 
-        for observation, tool_call in zip(observations, tool_calls)
-    ]
+        )
+        tool_outputs.append(tool_message)
+        
+        # Extract URLs from tool output
+        urls = extract_urls_from_tool_message(tool_content, tool_name)
+        extracted_urls.extend(urls)
     
     # Step 3: Check late exit conditions (after processing tools)
     exceeded_iterations = state.get("tool_call_iterations", 0) >= configurable.max_react_tool_calls
@@ -506,13 +532,19 @@ async def researcher_tools(state: ResearcherState, config: RunnableConfig) -> Co
         # End research and proceed to compression
         return Command(
             goto="compress_research",
-            update={"researcher_messages": tool_outputs}
+            update={
+                "researcher_messages": tool_outputs,
+                "reference_urls": extracted_urls
+            }
         )
     
     # Continue research loop with tool results
     return Command(
         goto="researcher",
-        update={"researcher_messages": tool_outputs}
+        update={
+            "researcher_messages": tool_outputs,
+            "reference_urls": extracted_urls
+        }
     )
 
 async def compress_research(state: ResearcherState, config: RunnableConfig):
@@ -531,6 +563,7 @@ async def compress_research(state: ResearcherState, config: RunnableConfig):
     """
     # Step 1: Configure the compression model
     configurable = Configuration.from_runnable_config(config)
+    effective_models = resolve_models(config)
     synthesizer_model = configurable_model.with_config({
         "model": effective_models["compression_model"],
         "max_tokens": configurable.compression_model_max_tokens,
@@ -566,7 +599,8 @@ async def compress_research(state: ResearcherState, config: RunnableConfig):
             # Return successful compression result
             return {
                 "compressed_research": str(response.content),
-                "raw_notes": [raw_notes_content]
+                "raw_notes": [raw_notes_content],
+                "reference_urls": state.get("reference_urls", [])
             }
             
         except Exception as e:
@@ -588,7 +622,8 @@ async def compress_research(state: ResearcherState, config: RunnableConfig):
     
     return {
         "compressed_research": "Error synthesizing research report: Maximum retries exceeded",
-        "raw_notes": [raw_notes_content]
+        "raw_notes": [raw_notes_content],
+        "reference_urls": state.get("reference_urls", [])
     }
 
 # Researcher Subgraph Construction
@@ -626,6 +661,7 @@ async def final_report_generation(state: AgentState, config: RunnableConfig):
     """
     # Step 1: Extract research findings and prepare state cleanup
     notes = state.get("notes", [])
+    reference_urls = state.get("reference_urls", [])
     cleared_state = {"notes": {"type": "override", "value": []}}
     findings = "\n".join(notes)
     
@@ -663,6 +699,7 @@ async def final_report_generation(state: AgentState, config: RunnableConfig):
             return {
                 "final_report": final_report.content, 
                 "messages": [final_report],
+                "reference_urls": reference_urls,
                 **cleared_state
             }
             
@@ -678,6 +715,7 @@ async def final_report_generation(state: AgentState, config: RunnableConfig):
                         return {
                             "final_report": f"Error generating final report: Token limit exceeded, however, we could not determine the model's maximum context length. Please update the model map in deep_researcher/utils.py with this information. {e}",
                             "messages": [AIMessage(content="Report generation failed due to token limits")],
+                            "reference_urls": reference_urls,
                             **cleared_state
                         }
                     # Use 4x token limit as character approximation for truncation
@@ -694,6 +732,7 @@ async def final_report_generation(state: AgentState, config: RunnableConfig):
                 return {
                     "final_report": f"Error generating final report: {e}",
                     "messages": [AIMessage(content="Report generation failed due to an error")],
+                    "reference_urls": reference_urls,
                     **cleared_state
                 }
     
@@ -701,6 +740,7 @@ async def final_report_generation(state: AgentState, config: RunnableConfig):
     return {
         "final_report": "Error generating final report: Maximum retries exceeded",
         "messages": [AIMessage(content="Report generation failed after maximum retries")],
+        "reference_urls": reference_urls,
         **cleared_state
     }
 

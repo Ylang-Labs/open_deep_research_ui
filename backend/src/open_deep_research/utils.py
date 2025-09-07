@@ -124,16 +124,24 @@ async def tavily_search(
         )
     }
     
-    # Step 7: Format the final output
+    # Step 7: Format the final output and extract URLs
     if not summarized_results:
         return "No valid search results found. Please try different search queries or use a different search API."
     
     formatted_output = "Search results: \n\n"
+    extracted_urls = list(summarized_results.keys())  # URLs are the keys of summarized_results
+    
     for i, (url, result) in enumerate(summarized_results.items()):
         formatted_output += f"\n\n--- SOURCE {i+1}: {result['title']} ---\n"
         formatted_output += f"URL: {url}\n\n"
         formatted_output += f"SUMMARY:\n{result['content']}\n\n"
         formatted_output += "\n\n" + "-" * 80 + "\n"
+    
+    # Store the extracted URLs as metadata on the tool for later retrieval
+    tavily_search.metadata = {
+        **(tavily_search.metadata or {}),
+        "last_search_urls": extracted_urls
+    }
     
     return formatted_output
 
@@ -527,6 +535,103 @@ async def load_mcp_tools(
 
 
 ##########################
+# URL Extraction Utils
+##########################
+
+def extract_urls_from_search_results(search_results: str) -> list[str]:
+    """Extract URLs from formatted search results text.
+    
+    This function parses the formatted search output from tavily_search and other 
+    search tools to extract all referenced URLs.
+    
+    Args:
+        search_results: Formatted search results string containing URL references
+        
+    Returns:
+        List of unique URLs found in the search results
+    """
+    import re
+    
+    # Pattern to match URLs in the format "URL: <url>" from tavily_search output
+    url_pattern = r"URL:\s+(https?://[^\s\n]+)"
+    
+    # Find all URLs in the search results
+    urls = re.findall(url_pattern, search_results, re.IGNORECASE)
+    
+    # Return unique URLs to avoid duplicates
+    return list(set(urls))
+
+def extract_urls_from_tavily_response(tavily_response_data: dict) -> list[str]:
+    """Extract URLs directly from Tavily API response data.
+    
+    Args:
+        tavily_response_data: Raw response data from Tavily API
+        
+    Returns:
+        List of unique URLs from the response
+    """
+    urls = []
+    
+    # Handle different response structures
+    if isinstance(tavily_response_data, list):
+        # List of search result objects
+        for response in tavily_response_data:
+            results = response.get('results', [])
+            for result in results:
+                if 'url' in result:
+                    urls.append(result['url'])
+    elif isinstance(tavily_response_data, dict):
+        # Single search result object
+        results = tavily_response_data.get('results', [])
+        for result in results:
+            if 'url' in result:
+                urls.append(result['url'])
+    
+    # Return unique URLs to avoid duplicates
+    return list(set(urls))
+
+def extract_urls_from_tool_message(tool_message_content: str, tool_name: str) -> list[str]:
+    """Extract URLs from tool message content based on the tool type.
+    
+    Args:
+        tool_message_content: The content from a tool message
+        tool_name: Name of the tool that generated the content
+        
+    Returns:
+        List of URLs extracted from the tool message
+    """
+    if tool_name in ["tavily_search", "web_search"]:
+        # For search tools, extract URLs from formatted text
+        return extract_urls_from_search_results(tool_message_content)
+    
+    # For other tools, look for any URL patterns in the content
+    import re
+    url_pattern = r"https?://[^\s\n\)]+(?=[\s\n\)]|$)"
+    urls = re.findall(url_pattern, tool_message_content, re.IGNORECASE)
+    
+    return list(set(urls)) if urls else []
+
+def deduplicate_urls(url_lists: list[list[str]]) -> list[str]:
+    """Combine multiple URL lists and remove duplicates while preserving order.
+    
+    Args:
+        url_lists: List of URL lists to combine and deduplicate
+        
+    Returns:
+        Single list with all unique URLs, order preserved from first occurrence
+    """
+    seen = set()
+    result = []
+    
+    for url_list in url_lists:
+        for url in url_list:
+            if url not in seen:
+                seen.add(url)
+                result.append(url)
+    
+    return result
+
+##########################
 # Tool Utils
 ##########################
 
@@ -806,6 +911,8 @@ MODEL_TOKEN_LIMITS = {
     "anthropic:claude-3-5-haiku": 200000,
     "google:gemini-1.5-pro": 2097152,
     "google:gemini-1.5-flash": 1048576,
+    "google_genai:gemini-2.5-pro": 2097152,
+    "google_genai:gemini-2.5-flash": 1048576,
     "google:gemini-pro": 32768,
     "cohere:command-r-plus": 128000,
     "cohere:command-r": 128000,

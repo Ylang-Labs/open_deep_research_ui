@@ -69,6 +69,7 @@ class AgentState(MessagesState):
     research_brief: Optional[str]
     raw_notes: Annotated[list[str], override_reducer] = []
     notes: Annotated[list[str], override_reducer] = []
+    reference_urls: Annotated[list[str], override_reducer] = []
     final_report: str
 
 class SupervisorState(TypedDict):
@@ -79,6 +80,7 @@ class SupervisorState(TypedDict):
     notes: Annotated[list[str], override_reducer] = []
     research_iterations: int = 0
     raw_notes: Annotated[list[str], override_reducer] = []
+    reference_urls: Annotated[list[str], override_reducer] = []
 
 class ResearcherState(TypedDict):
     """State for individual researchers conducting research."""
@@ -88,9 +90,11 @@ class ResearcherState(TypedDict):
     research_topic: str
     compressed_research: str
     raw_notes: Annotated[list[str], override_reducer] = []
+    reference_urls: Annotated[list[str], override_reducer] = []
 
 class ResearcherOutputState(BaseModel):
     """Output state from individual researchers."""
     
     compressed_research: str
     raw_notes: Annotated[list[str], override_reducer] = []
+    reference_urls: Annotated[list[str], override_reducer] = []
