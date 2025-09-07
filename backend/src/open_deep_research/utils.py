@@ -30,6 +30,7 @@ from mcp import McpError
 from tavily import AsyncTavilyClient
 
 from open_deep_research.configuration import Configuration, SearchAPI
+from open_deep_research.model_selection import resolve_models
 from open_deep_research.prompts import summarize_webpage_prompt
 from open_deep_research.state import ResearchComplete, Summary
 
@@ -77,14 +78,15 @@ async def tavily_search(
     
     # Step 3: Set up the summarization model with configuration
     configurable = Configuration.from_runnable_config(config)
+    effective_models = resolve_models(config)
     
     # Character limit to stay within model token limits (configurable)
     max_char_to_include = configurable.max_content_length
     
     # Initialize summarization model with retry logic
-    model_api_key = get_api_key_for_model(configurable.summarization_model, config)
+    model_api_key = get_api_key_for_model(effective_models["summarization_model"], config)
     summarization_model = init_chat_model(
-        model=configurable.summarization_model,
+        model=effective_models["summarization_model"],
         max_tokens=configurable.summarization_model_max_tokens,
         api_key=model_api_key,
         tags=["langsmith:nostream"]

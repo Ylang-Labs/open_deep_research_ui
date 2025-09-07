@@ -51,6 +51,7 @@ from open_deep_research.utils import (
     remove_up_to_last_ai_message,
     think_tool,
 )
+from open_deep_research.model_selection import resolve_models
 
 # Initialize a configurable model that we will use throughout the agent
 configurable_model = init_chat_model(
@@ -72,6 +73,8 @@ async def clarify_with_user(state: AgentState, config: RunnableConfig) -> Comman
     """
     # Step 1: Check if clarification is enabled in configuration
     configurable = Configuration.from_runnable_config(config)
+    effective_models = resolve_models(config)
+    effective_models = resolve_models(config)
     if not configurable.allow_clarification:
         # Skip clarification step and proceed directly to research
         return Command(goto="write_research_brief")
@@ -79,9 +82,9 @@ async def clarify_with_user(state: AgentState, config: RunnableConfig) -> Comman
     # Step 2: Prepare the model for structured clarification analysis
     messages = state["messages"]
     model_config = {
-        "model": configurable.research_model,
+        "model": effective_models["research_model"],
         "max_tokens": configurable.research_model_max_tokens,
-        "api_key": get_api_key_for_model(configurable.research_model, config),
+        "api_key": get_api_key_for_model(effective_models["research_model"], config),
         "tags": ["langsmith:nostream"]
     }
     
@@ -131,10 +134,11 @@ async def write_research_brief(state: AgentState, config: RunnableConfig) -> Com
     """
     # Step 1: Set up the research model for structured output
     configurable = Configuration.from_runnable_config(config)
+    effective_models = resolve_models(config)
     research_model_config = {
-        "model": configurable.research_model,
+        "model": effective_models["research_model"],
         "max_tokens": configurable.research_model_max_tokens,
-        "api_key": get_api_key_for_model(configurable.research_model, config),
+        "api_key": get_api_key_for_model(effective_models["research_model"], config),
         "tags": ["langsmith:nostream"]
     }
     
@@ -191,10 +195,11 @@ async def supervisor(state: SupervisorState, config: RunnableConfig) -> Command[
     """
     # Step 1: Configure the supervisor model with available tools
     configurable = Configuration.from_runnable_config(config)
+    effective_models = resolve_models(config)
     research_model_config = {
-        "model": configurable.research_model,
+        "model": effective_models["research_model"],
         "max_tokens": configurable.research_model_max_tokens,
-        "api_key": get_api_key_for_model(configurable.research_model, config),
+        "api_key": get_api_key_for_model(effective_models["research_model"], config),
         "tags": ["langsmith:nostream"]
     }
     
@@ -239,6 +244,7 @@ async def supervisor_tools(state: SupervisorState, config: RunnableConfig) -> Co
     """
     # Step 1: Extract current state and check exit conditions
     configurable = Configuration.from_runnable_config(config)
+    effective_models = resolve_models(config)
     supervisor_messages = state.get("supervisor_messages", [])
     research_iterations = state.get("research_iterations", 0)
     most_recent_message = supervisor_messages[-1]
@@ -331,7 +337,7 @@ async def supervisor_tools(state: SupervisorState, config: RunnableConfig) -> Co
                 
         except Exception as e:
             # Handle research execution errors
-            if is_token_limit_exceeded(e, configurable.research_model) or True:
+            if is_token_limit_exceeded(e, effective_models["research_model"]) or True:
                 # Token limit exceeded or other error - end research phase
                 return Command(
                     goto=END,
@@ -390,9 +396,9 @@ async def researcher(state: ResearcherState, config: RunnableConfig) -> Command[
     
     # Step 2: Configure the researcher model with tools
     research_model_config = {
-        "model": configurable.research_model,
+        "model": effective_models["research_model"],
         "max_tokens": configurable.research_model_max_tokens,
-        "api_key": get_api_key_for_model(configurable.research_model, config),
+        "api_key": get_api_key_for_model(effective_models["research_model"], config),
         "tags": ["langsmith:nostream"]
     }
     
@@ -450,6 +456,7 @@ async def researcher_tools(state: ResearcherState, config: RunnableConfig) -> Co
     """
     # Step 1: Extract current state and check early exit conditions
     configurable = Configuration.from_runnable_config(config)
+    effective_models = resolve_models(config)
     researcher_messages = state.get("researcher_messages", [])
     most_recent_message = researcher_messages[-1]
     
@@ -525,9 +532,9 @@ async def compress_research(state: ResearcherState, config: RunnableConfig):
     # Step 1: Configure the compression model
     configurable = Configuration.from_runnable_config(config)
     synthesizer_model = configurable_model.with_config({
-        "model": configurable.compression_model,
+        "model": effective_models["compression_model"],
         "max_tokens": configurable.compression_model_max_tokens,
-        "api_key": get_api_key_for_model(configurable.compression_model, config),
+        "api_key": get_api_key_for_model(effective_models["compression_model"], config),
         "tags": ["langsmith:nostream"]
     })
     
@@ -566,7 +573,7 @@ async def compress_research(state: ResearcherState, config: RunnableConfig):
             synthesis_attempts += 1
             
             # Handle token limit exceeded by removing older messages
-            if is_token_limit_exceeded(e, configurable.research_model):
+            if is_token_limit_exceeded(e, effective_models["compression_model"]):
                 researcher_messages = remove_up_to_last_ai_message(researcher_messages)
                 continue
             
@@ -624,10 +631,11 @@ async def final_report_generation(state: AgentState, config: RunnableConfig):
     
     # Step 2: Configure the final report generation model
     configurable = Configuration.from_runnable_config(config)
+    effective_models = resolve_models(config)
     writer_model_config = {
-        "model": configurable.final_report_model,
+        "model": effective_models["final_report_model"],
         "max_tokens": configurable.final_report_model_max_tokens,
-        "api_key": get_api_key_for_model(configurable.final_report_model, config),
+        "api_key": get_api_key_for_model(effective_models["final_report_model"], config),
         "tags": ["langsmith:nostream"]
     }
     
@@ -660,12 +668,12 @@ async def final_report_generation(state: AgentState, config: RunnableConfig):
             
         except Exception as e:
             # Handle token limit exceeded errors with progressive truncation
-            if is_token_limit_exceeded(e, configurable.final_report_model):
+            if is_token_limit_exceeded(e, effective_models["final_report_model"]):
                 current_retry += 1
                 
                 if current_retry == 1:
                     # First retry: determine initial truncation limit
-                    model_token_limit = get_model_token_limit(configurable.final_report_model)
+                    model_token_limit = get_model_token_limit(effective_models["final_report_model"])
                     if not model_token_limit:
                         return {
                             "final_report": f"Error generating final report: Token limit exceeded, however, we could not determine the model's maximum context length. Please update the model map in deep_researcher/utils.py with this information. {e}",
