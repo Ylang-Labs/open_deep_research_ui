@@ -85,6 +85,14 @@ async def tavily_search(
     
     # Initialize summarization model with retry logic
     model_api_key = get_api_key_for_model(effective_models["summarization_model"], config)
+    try:
+        logging.info(
+            "[tavily_search] Using summarization_model=%s (api_key_present=%s)",
+            effective_models["summarization_model"],
+            bool(model_api_key),
+        )
+    except Exception:
+        pass
     summarization_model = init_chat_model(
         model=effective_models["summarization_model"],
         max_tokens=configurable.summarization_model_max_tokens,
@@ -789,7 +797,7 @@ def is_token_limit_exceeded(exception: Exception, model_name: str = None) -> boo
             provider = 'openai'
         elif model_str.startswith('anthropic:'):
             provider = 'anthropic'
-        elif model_str.startswith('gemini:') or model_str.startswith('google:'):
+        elif model_str.startswith('gemini:') or model_str.startswith('google:') or model_str.startswith('google_genai:'):
             provider = 'gemini'
     
     # Step 2: Check provider-specific token limit patterns
@@ -999,36 +1007,58 @@ def get_config_value(value):
         return value.value
 
 def get_api_key_for_model(model_name: str, config: RunnableConfig):
-    """Get API key for a specific model from environment or config."""
-    should_get_from_config = os.getenv("GET_API_KEYS_FROM_CONFIG", "false")
-    model_name = model_name.lower()
-    if should_get_from_config.lower() == "true":
-        api_keys = config.get("configurable", {}).get("apiKeys", {})
-        if not api_keys:
-            return None
-        if model_name.startswith("openai:"):
-            return api_keys.get("OPENAI_API_KEY")
-        elif model_name.startswith("anthropic:"):
-            return api_keys.get("ANTHROPIC_API_KEY")
-        elif model_name.startswith("google"):
-            return api_keys.get("GOOGLE_API_KEY")
-        return None
-    else:
-        if model_name.startswith("openai:"): 
-            return os.getenv("OPENAI_API_KEY")
-        elif model_name.startswith("anthropic:"):
-            return os.getenv("ANTHROPIC_API_KEY")
-        elif model_name.startswith("google"):
-            return os.getenv("GOOGLE_API_KEY")
+    """Get API key for a specific model from request config (if enabled) with env fallback.
+
+    Honors GET_API_KEYS_FROM_CONFIG=true to read from `config.configurable.apiKeys`,
+    but will fall back to environment variables if a key is missing there.
+    """
+    model_name_l = (model_name or "").lower()
+    use_config = os.getenv("GET_API_KEYS_FROM_CONFIG", "false").strip().lower() == "true"
+    api_keys = (config.get("configurable", {}) or {}).get("apiKeys", {}) or {}
+
+    provider = None
+    if model_name_l.startswith("openai:"):
+        provider = "OPENAI_API_KEY"
+    elif model_name_l.startswith("anthropic:"):
+        provider = "ANTHROPIC_API_KEY"
+    elif model_name_l.startswith("google"):
+        provider = "GOOGLE_API_KEY"
+
+    if not provider:
         return None
 
+    key_from_config = api_keys.get(provider) if use_config else None
+    key_from_env = os.getenv(provider)
+    key = key_from_config or key_from_env
+
+    if os.getenv("DEBUG_API_KEY_SOURCES", "false").lower() == "true":
+        try:
+            logging.info(
+                "[get_api_key_for_model] model=%s provider=%s source=%s present=%s",
+                model_name,
+                provider,
+                "config" if (use_config and key_from_config) else ("env" if key_from_env else "none"),
+                bool(key),
+            )
+        except Exception:
+            pass
+
+    return key
+
 def get_tavily_api_key(config: RunnableConfig):
-    """Get Tavily API key from environment or config."""
-    should_get_from_config = os.getenv("GET_API_KEYS_FROM_CONFIG", "false")
-    if should_get_from_config.lower() == "true":
-        api_keys = config.get("configurable", {}).get("apiKeys", {})
-        if not api_keys:
-            return None
-        return api_keys.get("TAVILY_API_KEY")
-    else:
-        return os.getenv("TAVILY_API_KEY")
+    """Get Tavily API key from request config if enabled, with env fallback."""
+    use_config = os.getenv("GET_API_KEYS_FROM_CONFIG", "false").strip().lower() == "true"
+    api_keys = (config.get("configurable", {}) or {}).get("apiKeys", {}) or {}
+    key_from_config = api_keys.get("TAVILY_API_KEY") if use_config else None
+    key_from_env = os.getenv("TAVILY_API_KEY")
+    key = key_from_config or key_from_env
+    if os.getenv("DEBUG_API_KEY_SOURCES", "false").lower() == "true":
+        try:
+            logging.info(
+                "[get_tavily_api_key] source=%s present=%s",
+                "config" if (use_config and key_from_config) else ("env" if key_from_env else "none"),
+                bool(key),
+            )
+        except Exception:
+            pass
+    return key
