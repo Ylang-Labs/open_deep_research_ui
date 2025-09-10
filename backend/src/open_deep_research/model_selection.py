@@ -28,6 +28,7 @@ class Provider(Enum):
     OPENAI = "openai"
     ANTHROPIC = "anthropic"
     GOOGLE = "google"
+    OPENROUTER = "openrouter"
 
 
 class Role(Enum):
@@ -41,6 +42,7 @@ PROVIDER_KEYS: Dict[Provider, str] = {
     Provider.OPENAI: "OPENAI_API_KEY",
     Provider.ANTHROPIC: "ANTHROPIC_API_KEY",
     Provider.GOOGLE: "GOOGLE_API_KEY",
+    Provider.OPENROUTER: "OPENROUTER_API_KEY",
 }
 
 # Default models per provider per role
@@ -60,8 +62,15 @@ DEFAULT_MODELS: Dict[Provider, Dict[Role, str]] = {
     Provider.GOOGLE: {
         Role.SUMMARIZATION_MODEL: "google_genai:gemini-2.5-flash",
         Role.RESEARCH_MODEL: "google_genai:gemini-2.5-flash",
-        Role.COMPRESSION_MODEL: "google_genai:gemini-2.5-pro",
-        Role.FINAL_REPORT_MODEL: "google_genai:gemini-2.5-pro",
+        Role.COMPRESSION_MODEL: "google_genai:gemini-2.5-flash",
+        Role.FINAL_REPORT_MODEL: "google_genai:gemini-2.5-flash",
+    },
+    # OpenRouter routes to many providers. We default to widely available, capable models.
+    Provider.OPENROUTER: {
+        Role.SUMMARIZATION_MODEL: "openrouter:anthropic/claude-3.5-haiku",
+        Role.RESEARCH_MODEL: "openrouter:anthropic/claude-3.7-sonnet",
+        Role.COMPRESSION_MODEL: "openrouter:anthropic/claude-3.7-sonnet",
+        Role.FINAL_REPORT_MODEL: "openrouter:anthropic/claude-3.7-sonnet",
     },
 }
 
@@ -106,6 +115,8 @@ def _provider_from_model(model: str | None) -> Provider | None:
         return Provider.ANTHROPIC
     if model_l.startswith("google") or model_l.startswith("google_genai:"):
         return Provider.GOOGLE
+    if model_l.startswith("openrouter:"):
+        return Provider.OPENROUTER
     return None
 
 
@@ -122,11 +133,18 @@ def _preference_order() -> List[Provider]:
                 mapped.append(Provider.ANTHROPIC)
             elif s == Provider.GOOGLE.value:
                 mapped.append(Provider.GOOGLE)
+            elif s == Provider.OPENROUTER.value:
+                mapped.append(Provider.OPENROUTER)
         return mapped
 
     # Single preferred provider fallback
     preferred = os.getenv("PREFERRED_LLM_PROVIDER")
-    base_order = [Provider.OPENAI, Provider.ANTHROPIC, Provider.GOOGLE]
+    base_order = [
+        Provider.OPENAI,
+        Provider.ANTHROPIC,
+        Provider.OPENROUTER,
+        Provider.GOOGLE,
+    ]
     if preferred:
         p = preferred.lower()
         try:
