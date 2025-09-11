@@ -99,13 +99,15 @@ async def tavily_search(
         )
     except Exception:
         pass
+    # Provider-specific kwargs and OpenRouter normalization
+    init_kwargs = prepare_model_config(
+        effective_models["summarization_model"],
+        config,
+        max_tokens=configurable.summarization_model_max_tokens,
+        tags=["langsmith:nostream"],
+    )
     summarization_model = (
-        init_chat_model(
-            model=effective_models["summarization_model"],
-            max_tokens=configurable.summarization_model_max_tokens,
-            api_key=model_api_key,
-            tags=["langsmith:nostream"],
-        )
+        init_chat_model(**init_kwargs)
         .with_structured_output(Summary)
         .with_retry(stop_after_attempt=configurable.max_structured_output_retries)
     )
@@ -991,6 +993,7 @@ MODEL_TOKEN_LIMITS = {
     "bedrock:us.anthropic.claude-sonnet-4-20250514-v1:0": 200000,
     "bedrock:us.anthropic.claude-opus-4-20250514-v1:0": 200000,
     "anthropic.claude-opus-4-1-20250805-v1:0": 200000,
+    "openrouter:deepseek/deepseek-chat-v3.1:free": 64000,
 }
 
 
@@ -1135,6 +1138,88 @@ def get_api_key_for_model(model_name: str, config: RunnableConfig):
             pass
 
     return key
+
+
+def get_base_url_for_model(model_name: str, config: RunnableConfig) -> Optional[str]:
+    """Return provider-specific base_url for a given model if applicable.
+
+    - For models prefixed with "openrouter:", use OPENROUTER_API_BASE or default
+      to https://openrouter.ai/api/v1.
+    - For models prefixed with "openai:", allow overriding via OPENAI_BASE_URL
+      (or OPENAI_API_BASE / OPENAI_ENDPOINT for compatibility).
+
+    Args:
+        model_name: The configured model string (e.g., "openrouter:deepseek/..." or "openai:gpt-4.1")
+        config: RunnableConfig (unused, present for API symmetry and future use)
+
+    Returns:
+        A base_url string if one should be set for the model's provider; otherwise None.
+    """
+    model_name_l = (model_name or "").lower()
+
+    # OpenRouter models are OpenAI-compatible but require a different base URL
+    if model_name_l.startswith("openrouter:"):
+        return (
+            os.getenv("OPENROUTER_API_BASE")
+            or os.getenv("OPENROUTER_BASE_URL")
+            or "https://openrouter.ai/api/v1"
+        )
+
+    # Allow overriding OpenAI base URL via env if set
+    if model_name_l.startswith("openai:"):
+        return (
+            os.getenv("OPENAI_BASE_URL")
+            or os.getenv("OPENAI_API_BASE")
+            or os.getenv("OPENAI_ENDPOINT")
+        )
+
+    return None
+
+
+def prepare_model_config(
+    model_name: str,
+    config: RunnableConfig,
+    *,
+    max_tokens: Optional[int] = None,
+    tags: Optional[List[str]] = None,
+) -> Dict[str, Any]:
+    """Build init_chat_model kwargs for a given model string.
+
+    - Injects provider-specific base_url and api_key
+    - Normalizes OpenRouter models to use the OpenAI provider and strips the
+      "openrouter:" prefix from the model name for compatibility with clients.
+
+    Args:
+        model_name: The configured model string (e.g., "openrouter:deepseek/...".)
+        config: RunnableConfig for optional key sourcing
+        max_tokens: Optional max tokens
+        tags: Optional tags
+
+    Returns:
+        Dict of kwargs to pass to init_chat_model(...).with_config(...)
+    """
+    api_key = get_api_key_for_model(model_name, config)
+    base_url = get_base_url_for_model(model_name, config)
+
+    out: Dict[str, Any] = {
+        "model": model_name,
+        "api_key": api_key,
+    }
+    if max_tokens is not None:
+        out["max_tokens"] = max_tokens
+    if tags is not None:
+        out["tags"] = tags
+    if base_url:
+        out["base_url"] = base_url
+
+    # Special handling for OpenRouter: use OpenAI provider and strip prefix
+    model_l = (model_name or "").lower()
+    if model_l.startswith("openrouter:"):
+        # Strip provider prefix for underlying OpenAI-compatible client
+        out["model"] = model_name.split(":", 1)[1]
+        out["model_provider"] = "openai"
+
+    return out
 
 
 def get_tavily_api_key(config: RunnableConfig):

@@ -67,10 +67,10 @@ DEFAULT_MODELS: Dict[Provider, Dict[Role, str]] = {
     },
     # OpenRouter routes to many providers. We default to widely available, capable models.
     Provider.OPENROUTER: {
-        Role.SUMMARIZATION_MODEL: "openrouter:anthropic/claude-3.5-haiku",
-        Role.RESEARCH_MODEL: "openrouter:anthropic/claude-3.7-sonnet",
-        Role.COMPRESSION_MODEL: "openrouter:anthropic/claude-3.7-sonnet",
-        Role.FINAL_REPORT_MODEL: "openrouter:anthropic/claude-3.7-sonnet",
+        Role.SUMMARIZATION_MODEL: "openrouter:deepseek/deepseek-chat-v3.1:free",
+        Role.RESEARCH_MODEL: "openrouter:deepseek/deepseek-chat-v3.1:free",
+        Role.COMPRESSION_MODEL: "openrouter:deepseek/deepseek-chat-v3.1:free",
+        Role.FINAL_REPORT_MODEL: "openrouter:deepseek/deepseek-chat-v3.1:free",
     },
 }
 
