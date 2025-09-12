@@ -9,11 +9,7 @@ import {
 } from '@/components/ui/sidebar';
 import { SegmentedControl } from '@/components/ui/segmented-control';
 import { useThread } from '@assistant-ui/react';
-import type {
-  ThreadAssistantMessagePart,
-  ThreadMessage,
-  ThreadUserMessagePart,
-} from '@assistant-ui/react';
+import type { ThreadMessage } from '@assistant-ui/react';
 import { cn } from '@/lib/utils';
 import {
   Bot,
@@ -33,9 +29,19 @@ type ActivityItem = {
   url?: string;
 };
 
-function messageText(
-  parts: readonly (ThreadAssistantMessagePart | ThreadUserMessagePart)[]
-) {
+// Derive message part types from ThreadMessage to avoid version-specific imports
+type AssistantPart = Extract<ThreadMessage, { role: 'assistant' }> extends {
+  content: readonly (infer P)[];
+}
+  ? P
+  : never;
+type UserPart = Extract<ThreadMessage, { role: 'user' }> extends {
+  content: readonly (infer P)[];
+}
+  ? P
+  : never;
+
+function messageText(parts: readonly (AssistantPart | UserPart)[]) {
   const texts: string[] = [];
   for (const p of parts) {
     if (p.type === 'text' || p.type === 'reasoning') texts.push(p.text);
@@ -50,7 +56,7 @@ function extractUrlsFromString(text: string): string[] {
     try {
       const u = new URL(match[0]);
       // Normalize by stripping trailing punctuation commonly found in prose
-      let href = u.href.replace(/[),.;:]+$/g, '');
+      const href = u.href.replace(/[),.;:]+$/g, '');
       urls.add(href);
     } catch {
       // ignore invalid URLs
@@ -86,12 +92,7 @@ function findPhaseWindow(messages: readonly ThreadMessage[]) {
 
   messages.forEach((m, i) => {
     if (m.role !== 'assistant') return;
-    const text = messageText(
-      m.content as readonly (
-        | ThreadAssistantMessagePart
-        | ThreadUserMessagePart
-      )[]
-    );
+    const text = messageText(m.content as readonly (AssistantPart | UserPart)[]);
     if (start === null && includesCi(text, 'clarify with user')) start = i;
     if (end === null && includesCi(text, 'final report')) end = i;
   });
@@ -133,12 +134,7 @@ function extractActivity(messages: readonly ThreadMessage[]): {
     const shouldRecordActivity = inWindow(msgIdx);
 
     if (m.role === 'user') {
-      const text = messageText(
-        m.content as readonly (
-          | ThreadAssistantMessagePart
-          | ThreadUserMessagePart
-        )[]
-      );
+      const text = messageText(m.content as readonly (AssistantPart | UserPart)[]);
       if (text && shouldRecordActivity) {
         act.push({ id: m.id, kind: 'user', title: text });
       }
@@ -147,7 +143,7 @@ function extractActivity(messages: readonly ThreadMessage[]): {
 
     // assistant
     let idx = 0;
-    for (const part of m.content as readonly ThreadAssistantMessagePart[]) {
+    for (const part of m.content as readonly AssistantPart[]) {
       const partId = `${m.id}:${idx++}`;
       if (part.type === 'tool-call') {
         // Activity: show tool calls within window
@@ -196,10 +192,10 @@ function extractActivity(messages: readonly ThreadMessage[]): {
             title: part.title || part.url,
             url: part.url,
           });
-      } else if ((part as any).type === 'tool-result') {
+      } else if ((part as { type?: string }).type === 'tool-result') {
         // Attempt to collect URLs from tool results (sub-agent searches)
         const bag = new Set<string>();
-        const pr = part as any;
+        const pr = part as { text?: unknown; result?: unknown; content?: unknown };
         if (typeof pr.text === 'string') collectUrlsFromUnknown(pr.text, bag);
         if (pr.result !== undefined) collectUrlsFromUnknown(pr.result, bag);
         if (pr.content !== undefined) collectUrlsFromUnknown(pr.content, bag);
@@ -305,10 +301,10 @@ function SourcesList({
 
 export function AppSidebar() {
   const thread = useThread({ optional: true });
-  const messages = thread?.messages ?? [];
+  const messages = thread?.messages;
 
   const { activity, sources } = useMemo(
-    () => extractActivity(messages),
+    () => extractActivity(messages ?? []),
     [messages]
   );
   const [tab, setTab] = useState<'activity' | 'sources'>('activity');
