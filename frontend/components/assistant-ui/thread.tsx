@@ -39,7 +39,7 @@ export const Thread: FC = () => {
   return (
     <ThreadPrimitive.Root
       // aui-thread-root
-      className="bg-background flex h-full flex-col"
+      className="bg-background flex h-full flex-col pt-6"
       style={{
         ['--thread-max-width' as string]: '48rem',
         ['--thread-padding-x' as string]: '1rem',
