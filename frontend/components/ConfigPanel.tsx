@@ -17,7 +17,7 @@ type LabeledProps = {
 };
 
 const inputBase =
-  'w-full h-9 rounded-lg border border-sidebar-border/60 bg-background px-3 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring/50 transition';
+  'w-full h-9 rounded-lg border border-sidebar-border/60 bg-background px-3 text-xs outline-none focus-visible:ring-2 focus-visible:ring-ring/50 transition';
 
 function Field({ label, htmlFor, description, children }: LabeledProps) {
   return (
@@ -147,7 +147,7 @@ export function DeepResearchConfigPanel() {
         cols={1}
       >
         <Field label="Allow clarification questions">
-          <label className="inline-flex items-center gap-2 text-sm">
+          <label className="inline-flex items-center gap-2 text-xs">
             <input
               type="checkbox"
               className="h-4 w-4 rounded border-sidebar-border"
@@ -346,7 +346,7 @@ export function DeepResearchConfigPanel() {
           />
         </Field>
         <Field label="Require authentication">
-          <label className="inline-flex items-center gap-2 text-sm">
+          <label className="inline-flex items-center gap-2 text-xs">
             <input
               type="checkbox"
               className="h-4 w-4 rounded border-sidebar-border"
@@ -368,7 +368,7 @@ export function DeepResearchConfigPanel() {
           <Field label="Additional MCP prompt (optional)">
             <textarea
               placeholder="Additional system instructions about available MCP tools"
-              className="w-full min-h-24 rounded-lg border border-sidebar-border/60 bg-background px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
+              className="w-full min-h-24 rounded-lg border border-sidebar-border/60 bg-background px-3 py-2 text-xs outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
               value={config.mcp_prompt ?? ''}
               onChange={(e) =>
                 setConfig((c) => ({ ...c, mcp_prompt: e.target.value }))
@@ -378,8 +378,8 @@ export function DeepResearchConfigPanel() {
         </div>
       </GroupCard>
 
-      <div className="sticky bottom-0 flex items-center gap-2 rounded-xl border border-sidebar-border/60 bg-gradient-to-r from-background/90 to-background/70 p-2">
-        <Button variant="outline" size="sm" onClick={reset}>
+      <div className="sticky bottom-0 flex items-center gap-2 rounded-xl border border-sidebar-border/60 bg-gradient-to-r from-background/90 to-background/70 p-2 flex-col">
+        <Button variant="outline" size="sm" onClick={reset} className="w-full">
           Reset to defaults
         </Button>
         <div className="text-[11px] text-foreground/60">
