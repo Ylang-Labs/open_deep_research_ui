@@ -231,33 +231,71 @@ function ActivityIcon({ kind }: { kind: ActivityItem['kind'] }) {
   }
 }
 
+function getActivityIconStyles(kind: ActivityItem['kind']) {
+  const baseClasses =
+    'inline-flex h-7 w-7 items-center justify-center rounded-full border transition-all duration-200';
+
+  return cn(
+    baseClasses,
+    'border-sidebar-border bg-sidebar-accent text-sidebar-accent-foreground shadow-sm'
+  );
+}
+
 function ActivityList({ items }: { items: ActivityItem[] }) {
   return (
-    <div className="space-y-3 overflow-x-hidden">
+    <div className="space-y-4 overflow-x-hidden">
       {items.map((it, i) => (
-        <div key={it.id} className="relative flex items-start pl-10">
+        <div key={it.id} className="relative flex items-start pl-11">
+          {/* Enhanced timeline connector */}
           {i !== items.length - 1 && (
-            <span className="absolute left-[13px] top-6 h-[calc(100%_-_1rem)] w-px bg-sidebar-border" />
+            <div className="absolute left-[13.5px] top-8 h-[calc(100%_-_1.25rem)] w-px bg-gradient-to-b from-sidebar-border via-sidebar-border/60 to-sidebar-border/30" />
           )}
-          <span className="absolute left-1 top-0 inline-flex h-6 w-6 items-center justify-center rounded-full border border-sidebar-border bg-sidebar-accent text-sidebar-accent-foreground">
+
+          {/* Enhanced activity icon with better visual hierarchy */}
+          <span
+            className={cn(
+              'absolute left-0 top-0.5',
+              getActivityIconStyles(it.kind)
+            )}
+          >
             <ActivityIcon kind={it.kind} />
           </span>
-          <div className="flex-1 min-w-0 text-sm">
-            <div className="font-medium leading-6 min-h-[24px] break-words">
+
+          <div className="flex-1 min-w-0">
+            {/* Enhanced title typography */}
+            <div className="font-medium leading-relaxed text-sm text-foreground/90 break-words mb-1">
               {it.title}
             </div>
+
+            {/* Enhanced description with better contrast and spacing */}
             {it.description && (
-              <div className="text-foreground/70 line-clamp-2 text-xs leading-6 break-words">
+              <div className="text-foreground/60 line-clamp-3 text-xs leading-relaxed break-words">
                 {it.description}
               </div>
             )}
           </div>
         </div>
       ))}
+
       {items.length === 0 && (
-        <div className="text-foreground/60 flex items-center gap-2 rounded-md border border-dashed p-3 text-sm">
-          <MessagesSquare className="h-4 w-4" />
-          Activity from deep research will appear here.
+        <div
+          className={cn(
+            'flex flex-col items-center gap-3 rounded-xl border border-dashed p-6 text-center',
+            'border-sidebar-border/50 bg-gradient-to-br from-background/40 to-background/20'
+          )}
+        >
+          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-sidebar-accent/40">
+            <MessagesSquare className="h-5 w-5 text-foreground/50" />
+          </div>
+          <div className="space-y-1">
+            <p className="text-sm font-medium text-foreground/70">
+              No activity yet
+            </p>
+            <p className="text-xs text-foreground/50 leading-relaxed">
+              Research activities and reasoning steps will appear here as the AI
+              works
+            </p>
+          </div>
         </div>
       )}
     </div>
@@ -270,7 +308,7 @@ function SourcesList({
   items: { id: string; url: string; title?: string }[];
 }) {
   return (
-    <div className="space-y-2 overflow-x-hidden">
+    <div className="space-y-3 overflow-x-hidden">
       {items.map((s) => {
         const domain = (() => {
           try {
@@ -279,28 +317,107 @@ function SourcesList({
             return s.url;
           }
         })();
+
+        // Extract domain type for enhanced visual indicators
+        const domainType = (() => {
+          if (domain.includes('arxiv.org')) return 'academic';
+          if (domain.includes('wikipedia.org')) return 'reference';
+          if (domain.includes('github.com') || domain.includes('gitlab.com'))
+            return 'code';
+          if (domain.includes('medium.com') || domain.includes('substack.com'))
+            return 'article';
+          return 'general';
+        })();
+
         return (
           <a
             key={s.id}
             href={s.url}
             target="_blank"
             rel="noreferrer"
-            className="block rounded-lg border border-sidebar-border bg-background/40 p-3 hover:bg-accent overflow-x-hidden"
+            className={cn(
+              'group relative block overflow-hidden rounded-xl border transition-all duration-200 ease-out',
+              'border-sidebar-border/60 bg-gradient-to-br from-background/80 to-background/40',
+              'hover:border-sidebar-border hover:bg-gradient-to-br hover:from-background hover:to-background/60',
+              'hover:shadow-sm hover:shadow-black/5',
+              'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2'
+            )}
           >
-            <div className="flex items-center gap-2 text-xs text-foreground/70">
-              <LinkIcon className="h-3.5 w-3.5" />
-              <span className="min-w-0 break-words">{domain}</span>
-            </div>
-            <div className="mt-1 line-clamp-2 text-sm font-medium leading-5 break-words">
-              {s.title ?? s.url}
+            {/* Subtle accent line for visual interest */}
+            <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-sidebar-border/40 to-transparent" />
+
+            <div className="relative p-4">
+              {/* Header with enhanced domain styling */}
+              <div className="flex items-center gap-2.5 mb-2.5">
+                <div
+                  className={cn(
+                    'flex h-6 w-6 items-center justify-center rounded-md transition-colors duration-200',
+                    'bg-sidebar-accent/60 group-hover:bg-sidebar-accent'
+                  )}
+                >
+                  <LinkIcon className="h-3 w-3" />
+                </div>
+                <span
+                  className={cn(
+                    'text-xs font-medium tracking-wide transition-colors duration-200',
+                    'text-foreground/60 group-hover:text-foreground/80'
+                  )}
+                >
+                  {domain}
+                </span>
+              </div>
+
+              {/* Title with improved typography */}
+              <div
+                className={cn(
+                  'font-medium leading-relaxed transition-colors duration-200',
+                  'text-sm text-foreground/90 group-hover:text-foreground',
+                  'line-clamp-2 break-words'
+                )}
+              >
+                {s.title ?? s.url}
+              </div>
+
+              {/* Subtle visual indicator for external link */}
+              <div className="absolute bottom-3 right-3 opacity-0 transition-opacity duration-200 group-hover:opacity-40">
+                <svg
+                  className="h-3 w-3"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"
+                  />
+                </svg>
+              </div>
             </div>
           </a>
         );
       })}
+
       {items.length === 0 && (
-        <div className="text-foreground/60 flex items-center gap-2 rounded-md border border-dashed p-3 text-sm">
-          <FileText className="h-4 w-4" />
-          Sources will show up when research finds citations.
+        <div
+          className={cn(
+            'flex flex-col items-center gap-3 rounded-xl border border-dashed p-6 text-center',
+            'border-sidebar-border/50 bg-gradient-to-br from-background/40 to-background/20'
+          )}
+        >
+          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-sidebar-accent/40">
+            <FileText className="h-5 w-5 text-foreground/50" />
+          </div>
+          <div className="space-y-1">
+            <p className="text-sm font-medium text-foreground/70">
+              No sources yet
+            </p>
+            <p className="text-xs text-foreground/50 leading-relaxed">
+              Research citations and references will appear here as the AI
+              discovers relevant sources
+            </p>
+          </div>
         </div>
       )}
     </div>
@@ -311,8 +428,6 @@ export function AppSidebar() {
   const thread = useThread({ optional: true });
   const messages = thread?.messages;
 
-  console.log('messages', messages);
-
   const { activity, sources } = useMemo(
     () => extractActivity(messages ?? []),
     [messages]
@@ -320,30 +435,43 @@ export function AppSidebar() {
   const [tab, setTab] = useState<'activity' | 'sources'>('activity');
 
   return (
-    <Sidebar side="right" width="22rem" className="border-l overflow-x-hidden">
-      <SidebarHeader>
-        <SegmentedControl
-          value={tab}
-          onValueChange={(v) => setTab(v as 'activity' | 'sources')}
-          segments={[
-            { value: 'activity', label: 'Activity' },
-            { value: 'sources', label: 'Sources', badge: sources.length },
-          ]}
-        />
+    <Sidebar
+      side="right"
+      width="22rem"
+      className="border-l border-sidebar-border/60 overflow-x-hidden"
+    >
+      <SidebarHeader className="border-b border-sidebar-border/60 bg-gradient-to-b from-background to-background/80">
+        <div className="p-4">
+          <SegmentedControl
+            value={tab}
+            onValueChange={(v) => setTab(v as 'activity' | 'sources')}
+            segments={[
+              { value: 'activity', label: 'Activity' },
+              { value: 'sources', label: 'Sources', badge: sources.length },
+            ]}
+          />
+        </div>
       </SidebarHeader>
-      <SidebarContent className="overflow-x-hidden">
+
+      <SidebarContent className="overflow-x-hidden px-4 py-2">
         {tab === 'activity' ? (
           <ActivityList items={activity} />
         ) : (
           <SourcesList items={sources} />
         )}
       </SidebarContent>
-      <SidebarFooter>
-        <div className="text-foreground/60 flex items-center justify-between text-xs">
-          <span>Deep Research</span>
-          <span>
+
+      <SidebarFooter className="border-t border-sidebar-border/60 bg-gradient-to-t from-background to-background/80">
+        <div className="flex items-center justify-between p-4">
+          <div className="flex items-center gap-2">
+            <div className="h-2 w-2 rounded-full bg-green-500/80 animate-pulse" />
+            <span className="text-xs font-medium text-foreground/70">
+              Deep Research
+            </span>
+          </div>
+          <div className="text-xs text-foreground/50 font-mono">
             {activity.length} events • {sources.length} sources
-          </span>
+          </div>
         </div>
       </SidebarFooter>
     </Sidebar>
