@@ -20,6 +20,7 @@ import {
   FileText,
   MessagesSquare,
 } from 'lucide-react';
+import { DeepResearchConfigPanel } from './ConfigPanel';
 
 type ActivityItem = {
   id: string;
@@ -231,7 +232,7 @@ function ActivityIcon({ kind }: { kind: ActivityItem['kind'] }) {
   }
 }
 
-function getActivityIconStyles(kind: ActivityItem['kind']) {
+function getActivityIconStyles() {
   const baseClasses =
     'inline-flex h-7 w-7 items-center justify-center rounded-full border transition-all duration-200';
 
@@ -255,7 +256,7 @@ function ActivityList({ items }: { items: ActivityItem[] }) {
           <span
             className={cn(
               'absolute left-0 top-0.5',
-              getActivityIconStyles(it.kind)
+              getActivityIconStyles()
             )}
           >
             <ActivityIcon kind={it.kind} />
@@ -318,16 +319,7 @@ function SourcesList({
           }
         })();
 
-        // Extract domain type for enhanced visual indicators
-        const domainType = (() => {
-          if (domain.includes('arxiv.org')) return 'academic';
-          if (domain.includes('wikipedia.org')) return 'reference';
-          if (domain.includes('github.com') || domain.includes('gitlab.com'))
-            return 'code';
-          if (domain.includes('medium.com') || domain.includes('substack.com'))
-            return 'article';
-          return 'general';
-        })();
+        // Determine domain (reserved for future visual tweaks)
 
         return (
           <a
@@ -432,7 +424,7 @@ export function AppSidebar() {
     () => extractActivity(messages ?? []),
     [messages]
   );
-  const [tab, setTab] = useState<'activity' | 'sources'>('activity');
+  const [tab, setTab] = useState<'activity' | 'sources' | 'settings'>('activity');
 
   return (
     <Sidebar
@@ -444,21 +436,20 @@ export function AppSidebar() {
         <div className="p-4">
           <SegmentedControl
             value={tab}
-            onValueChange={(v) => setTab(v as 'activity' | 'sources')}
+            onValueChange={(v) => setTab(v as 'activity' | 'sources' | 'settings')}
             segments={[
               { value: 'activity', label: 'Activity' },
               { value: 'sources', label: 'Sources', badge: sources.length },
+              { value: 'settings', label: 'Settings' },
             ]}
           />
         </div>
       </SidebarHeader>
 
       <SidebarContent className="overflow-x-hidden px-4 py-2">
-        {tab === 'activity' ? (
-          <ActivityList items={activity} />
-        ) : (
-          <SourcesList items={sources} />
-        )}
+        {tab === 'activity' && <ActivityList items={activity} />}
+        {tab === 'sources' && <SourcesList items={sources} />}
+        {tab === 'settings' && <div className="pb-4"><DeepResearchConfigPanel /></div>}
       </SidebarContent>
 
       <SidebarFooter className="border-t border-sidebar-border/60 bg-gradient-to-t from-background to-background/80">

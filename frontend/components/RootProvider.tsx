@@ -7,9 +7,14 @@ import { SidebarProvider, SidebarTrigger } from '@/components/ui/sidebar';
 import { AppSidebar } from '@/components/AssistantSidebar';
 import { createThread, getThreadState, sendMessage } from '@/lib/chatApi';
 import { MessagesSquare } from 'lucide-react';
+import {
+  DeepResearchConfigProvider,
+  useDeepResearchConfig,
+} from '@/components/ConfigContext';
 
-export function AppRootProviders({ children }: { children: React.ReactNode }) {
+function ProvidersInner({ children }: { children: React.ReactNode }) {
   const threadIdRef = useRef<string | undefined>(undefined);
+  const { config } = useDeepResearchConfig();
 
   const runtime = useLangGraphRuntime({
     threadId: threadIdRef.current,
@@ -19,7 +24,7 @@ export function AppRootProviders({ children }: { children: React.ReactNode }) {
         threadIdRef.current = thread_id;
       }
       const threadId = threadIdRef.current!;
-      return sendMessage({ threadId, messages, command });
+      return sendMessage({ threadId, messages, command, config });
     },
     onSwitchToNewThread: async () => {
       const { thread_id } = await createThread();
@@ -46,5 +51,13 @@ export function AppRootProviders({ children }: { children: React.ReactNode }) {
         {children}
       </SidebarProvider>
     </AssistantRuntimeProvider>
+  );
+}
+
+export function AppRootProviders({ children }: { children: React.ReactNode }) {
+  return (
+    <DeepResearchConfigProvider>
+      <ProvidersInner>{children}</ProvidersInner>
+    </DeepResearchConfigProvider>
   );
 }

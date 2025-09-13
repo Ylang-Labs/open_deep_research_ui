@@ -2,28 +2,30 @@
 
 import type { ToolCallMessagePartComponent } from '@assistant-ui/react';
 import { useMemo, useState } from 'react';
-import {
-  Brain,
-  CheckCircle2,
-  Info,
-  Target,
-  Wrench,
-  ChevronDown,
-  ChevronUp,
-  Link as LinkIcon,
-  Search,
-  AlertTriangle,
-} from 'lucide-react';
+import { Brain, CheckCircle2, Target, Wrench, ChevronDown, ChevronUp, Search, AlertTriangle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { TooltipIconButton } from '@/components/assistant-ui/tooltip-icon-button';
 
-function tryParseArgs(argsText?: string): any | undefined {
+function tryParseArgs(argsText?: string): Record<string, unknown> | undefined {
   if (!argsText) return undefined;
   try {
-    return JSON.parse(argsText);
+    const parsed = JSON.parse(argsText);
+    return typeof parsed === 'object' && parsed !== null ? (parsed as Record<string, unknown>) : undefined;
   } catch {
     return undefined;
   }
+}
+
+function getString(obj: Record<string, unknown> | undefined, key: string): string | undefined {
+  if (!obj) return undefined;
+  const v = obj[key];
+  return typeof v === 'string' ? v : undefined;
+}
+
+function getBoolean(obj: Record<string, unknown> | undefined, key: string): boolean | undefined {
+  if (!obj) return undefined;
+  const v = obj[key];
+  return typeof v === 'boolean' ? v : undefined;
 }
 
 function extractUrls(text?: string): string[] {
@@ -116,7 +118,7 @@ export const ThinkToolCard: ToolCallMessagePartComponent = ({
 }) => {
   const args = tryParseArgs(argsText);
   const reflection: string | undefined =
-    args?.reflection ||
+    getString(args, 'reflection') ||
     (typeof result === 'string'
       ? result.replace(/^Reflection recorded:\s*/i, '').trim()
       : undefined);
@@ -171,9 +173,9 @@ export const ThinkToolCard: ToolCallMessagePartComponent = ({
 export const ClarifyWithUserCard: ToolCallMessagePartComponent = ({
   argsText,
 }) => {
-  const args = tryParseArgs(argsText) ?? {};
-  const need = Boolean(args?.need_clarification);
-  const verification: string | undefined = args?.verification || args?.question;
+  const args = tryParseArgs(argsText);
+  const need = Boolean(getBoolean(args, 'need_clarification'));
+  const verification: string | undefined = getString(args, 'verification') || getString(args, 'question');
   return (
     <div
       className={
@@ -199,8 +201,8 @@ export const ClarifyWithUserCard: ToolCallMessagePartComponent = ({
 export const ResearchQuestionCard: ToolCallMessagePartComponent = ({
   argsText,
 }) => {
-  const args = tryParseArgs(argsText) ?? {};
-  const brief: string | undefined = args?.research_brief;
+  const args = tryParseArgs(argsText);
+  const brief: string | undefined = getString(args, 'research_brief');
   return (
     <div className="mb-5 rounded-2xl border bg-gradient-to-br from-sky-50 to-transparent p-4 dark:from-sky-900/20 dark:to-transparent">
       <div className="mb-2 flex items-center gap-2">
@@ -221,7 +223,7 @@ export const ResearchQuestionCard: ToolCallMessagePartComponent = ({
 function parseQueriesFromResult(text?: string): string[] {
   if (!text) return [];
   // Try to extract inside queries = ["..."] pattern
-  const m = text.match(/queries\s*=\s*\[(.*?)\]/is);
+  const m = text.match(/queries\s*=\s*\[([\s\S]*?)\]/i);
   if (!m) return [];
   const inner = m[1];
   const qRegex = /"([^"]+)"|'([^']+)'/g;
@@ -237,8 +239,8 @@ export const ConductResearchCard: ToolCallMessagePartComponent = ({
   argsText,
   result,
 }) => {
-  const args = tryParseArgs(argsText) ?? {};
-  const topic: string | undefined = args?.research_topic;
+  const args = tryParseArgs(argsText);
+  const topic: string | undefined = getString(args, 'research_topic');
   const resultText: string | undefined =
     typeof result === 'string' ? result : undefined;
 

@@ -1,13 +1,15 @@
-import { Client, ThreadState } from "@langchain/langgraph-sdk";
+import { Client, ThreadState } from '@langchain/langgraph-sdk';
 import {
   LangChainMessage,
   LangGraphCommand,
-} from "@assistant-ui/react-langgraph";
+} from '@assistant-ui/react-langgraph';
+import type { DeepResearchConfig } from '@/components/ConfigContext';
+import { toConfigurable } from '@/components/ConfigContext';
 
 const createClient = () => {
   const apiUrl =
-    process.env["NEXT_PUBLIC_LANGGRAPH_API_URL"] ||
-    new URL("/api", window.location.href).href;
+    process.env['NEXT_PUBLIC_LANGGRAPH_API_URL'] ||
+    new URL('/api', window.location.href).href;
   return new Client({
     apiUrl,
   });
@@ -29,11 +31,12 @@ export const sendMessage = async (params: {
   threadId: string;
   messages?: LangChainMessage[];
   command?: LangGraphCommand | undefined;
+  config?: DeepResearchConfig | undefined;
 }) => {
   const client = createClient();
   return client.runs.stream(
     params.threadId,
-    process.env["NEXT_PUBLIC_LANGGRAPH_ASSISTANT_ID"]!,
+    process.env['NEXT_PUBLIC_LANGGRAPH_ASSISTANT_ID']!,
     {
       input: params.messages?.length
         ? {
@@ -41,7 +44,11 @@ export const sendMessage = async (params: {
           }
         : null,
       command: params.command,
-      streamMode: ["messages", "updates"],
+      streamMode: ['messages', 'updates'],
+      // Forward user-selected configuration to LangGraph as configurable fields
+      ...(params.config
+        ? { config: { configurable: toConfigurable(params.config) } }
+        : {}),
     }
   );
 };
