@@ -5,9 +5,9 @@ import {
   ActionBarPrimitive,
   BranchPickerPrimitive,
   // TODO: this template is on an older version of @assistant-ui/react, this should be updated
-  // ErrorPrimitive, 
-} from "@assistant-ui/react";
-import type { FC } from "react";
+  // ErrorPrimitive,
+} from '@assistant-ui/react';
+import type { FC } from 'react';
 import {
   ArrowDownIcon,
   ArrowUpIcon,
@@ -19,14 +19,21 @@ import {
   ChevronLeftIcon,
   ChevronRightIcon,
   Square,
-} from "lucide-react";
+} from 'lucide-react';
 
-import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button";
-import { motion } from "framer-motion";
-import { Button } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
-import { MarkdownText } from "./markdown-text";
-import { ToolFallback } from "./tool-fallback";
+import { TooltipIconButton } from '@/components/assistant-ui/tooltip-icon-button';
+import { motion } from 'framer-motion';
+import { Button } from '@/components/ui/button';
+import { cn } from '@/lib/utils';
+import { MarkdownText } from './markdown-text';
+import { ToolFallback } from './tool-fallback';
+import {
+  ThinkToolCard,
+  ConductResearchCard,
+  ResearchCompleteCard,
+  ClarifyWithUserCard,
+  ResearchQuestionCard,
+} from './tool-cards';
 
 export const Thread: FC = () => {
   return (
@@ -34,12 +41,12 @@ export const Thread: FC = () => {
       // aui-thread-root
       className="bg-background flex h-full flex-col"
       style={{
-        ["--thread-max-width" as string]: "48rem",
-        ["--thread-padding-x" as string]: "1rem",
+        ['--thread-max-width' as string]: '48rem',
+        ['--thread-padding-x' as string]: '1rem',
       }}
     >
       {/* aui-thread-viewport */}
-      <ThreadPrimitive.Viewport className="relative flex min-w-0 flex-1 flex-col gap-6 overflow-y-scroll">
+      <ThreadPrimitive.Viewport className="relative flex min-w-0 flex-1 flex-col gap-4 overflow-y-scroll">
         <ThreadWelcome />
 
         <ThreadPrimitive.Messages
@@ -118,24 +125,24 @@ const ThreadWelcomeSuggestions: FC = () => {
     <div className="grid w-full gap-2 sm:grid-cols-2">
       {[
         {
-          title: "What are the advantages",
-          label: "of using Assistant Cloud?",
-          action: "What are the advantages of using Assistant Cloud?",
+          title: 'What are the advantages',
+          label: 'of using Assistant Cloud?',
+          action: 'What are the advantages of using Assistant Cloud?',
         },
         {
-          title: "Write code to",
+          title: 'Write code to',
           label: `demonstrate topological sorting`,
           action: `Write code to demonstrate topological sorting`,
         },
         {
-          title: "Help me write an essay",
+          title: 'Help me write an essay',
           label: `about AI chat applications`,
           action: `Help me write an essay about AI chat applications`,
         },
         {
-          title: "What is the weather",
-          label: "in San Francisco?",
-          action: "What is the weather in San Francisco?",
+          title: 'What is the weather',
+          label: 'in San Francisco?',
+          action: 'What is the weather in San Francisco?',
         },
       ].map((suggestedAction, index) => (
         <motion.div
@@ -185,7 +192,7 @@ const Composer: FC = () => {
         <ComposerPrimitive.Input
           placeholder="Send a message..."
           className={
-            "bg-muted border-border dark:border-muted-foreground/15 focus:outline-primary placeholder:text-muted-foreground max-h-[calc(50dvh)] min-h-16 w-full resize-none rounded-t-2xl border-x border-t px-4 pt-2 pb-3 text-base outline-none"
+            'bg-muted border-border dark:border-muted-foreground/15 focus:outline-primary placeholder:text-muted-foreground max-h-[calc(50dvh)] min-h-16 w-full resize-none rounded-t-2xl border-x border-t px-4 pt-2 pb-3 text-base outline-none'
           }
           rows={1}
           autoFocus
@@ -207,7 +214,7 @@ const ComposerAction: FC = () => {
         // aui-composer-attachment-button
         className="hover:bg-foreground/15 dark:hover:bg-background/50 scale-115 p-3.5"
         onClick={() => {
-          console.log("Attachment clicked - not implemented");
+          console.log('Attachment clicked - not implemented');
         }}
       >
         <PlusIcon />
@@ -264,7 +271,7 @@ const AssistantMessage: FC = () => {
     <MessagePrimitive.Root asChild>
       <motion.div
         // aui-assistant-message-root
-        className="relative mx-auto grid w-full max-w-[var(--thread-max-width)] grid-cols-[auto_auto_1fr] grid-rows-[auto_1fr] px-[var(--thread-padding-x)] py-4"
+        className="relative mx-auto grid w-full max-w-[var(--thread-max-width)] grid-cols-[auto_auto_1fr] grid-rows-[auto_1fr] px-[var(--thread-padding-x)] py-2"
         initial={{ y: 5, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
         data-role="assistant"
@@ -279,7 +286,16 @@ const AssistantMessage: FC = () => {
           <MessagePrimitive.Content
             components={{
               Text: MarkdownText,
-              tools: { Fallback: ToolFallback },
+              tools: {
+                by_name: {
+                  think_tool: ThinkToolCard,
+                  ConductResearch: ConductResearchCard,
+                  ResearchComplete: ResearchCompleteCard,
+                  ClarifyWithUser: ClarifyWithUserCard,
+                  ResearchQuestion: ResearchQuestionCard,
+                },
+                Fallback: ToolFallback,
+              },
             }}
           />
           {/* TODO: this template is on an older version of @assistant-ui/react, this should be updated */}
@@ -328,7 +344,7 @@ const UserMessage: FC = () => {
     <MessagePrimitive.Root asChild>
       <motion.div
         // aui-user-message-root
-        className="mx-auto grid w-full max-w-[var(--thread-max-width)] auto-rows-auto grid-cols-[minmax(72px,1fr)_auto] gap-y-1 px-[var(--thread-padding-x)] py-4 [&:where(>*)]:col-start-2"
+        className="mx-auto grid w-full max-w-[var(--thread-max-width)] auto-rows-auto grid-cols-[minmax(72px,1fr)_auto] gap-y-1 px-[var(--thread-padding-x)] py-2  [&:where(>*)]:col-start-2"
         initial={{ y: 5, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
         data-role="user"
@@ -403,8 +419,8 @@ const BranchPicker: FC<BranchPickerPrimitive.Root.Props> = ({
       hideWhenSingleBranch
       // aui-branch-picker-root
       className={cn(
-        "text-muted-foreground inline-flex items-center text-xs",
-        className,
+        'text-muted-foreground inline-flex items-center text-xs',
+        className
       )}
       {...rest}
     >

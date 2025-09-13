@@ -1,7 +1,7 @@
-import { ToolCallMessagePartComponent } from "@assistant-ui/react";
-import { CheckIcon, ChevronDownIcon, ChevronUpIcon } from "lucide-react";
-import { useState } from "react";
-import { Button } from "../ui/button";
+import { ToolCallMessagePartComponent } from '@assistant-ui/react';
+import { CheckIcon, ChevronDownIcon, ChevronUpIcon } from 'lucide-react';
+import { useState } from 'react';
+import { Button } from '../ui/button';
 
 export const ToolFallback: ToolCallMessagePartComponent = ({
   toolName,
@@ -29,7 +29,7 @@ export const ToolFallback: ToolCallMessagePartComponent = ({
             <div className="border-t border-dashed px-4 pt-2">
               <p className="font-semibold">Result:</p>
               <pre className="whitespace-pre-wrap">
-                {typeof result === "string"
+                {typeof result === 'string'
                   ? result
                   : JSON.stringify(result, null, 2)}
               </pre>
