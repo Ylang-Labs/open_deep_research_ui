@@ -56,11 +56,13 @@ export function Sidebar({
   const { open } = useSidebar();
   const translate = side === "right" ? "translate-x-full" : "-translate-x-full";
   const position = side === "right" ? "right-0" : "left-0";
+  const borderSide = side === "right" ? "border-l" : "border-r";
 
   return (
     <aside
       className={cn(
-        "fixed top-0 z-40 h-dvh border-l bg-sidebar text-sidebar-foreground shadow-sm transition-transform",
+        "fixed top-0 z-40 h-dvh bg-sidebar text-sidebar-foreground shadow-sm transition-transform",
+        borderSide,
         position,
         open ? "translate-x-0" : translate,
         className
@@ -100,12 +102,14 @@ export function SidebarTrigger({
   className,
   children,
   "aria-label": ariaLabel = "Toggle sidebar",
+  hideWhenOpen,
 }: {
   className?: string;
   children?: React.ReactNode;
   "aria-label"?: string;
+  hideWhenOpen?: boolean;
 }) {
-  const { toggle } = useSidebar();
+  const { toggle, open } = useSidebar();
   return (
     <button
       type="button"
@@ -113,6 +117,7 @@ export function SidebarTrigger({
       onClick={toggle}
       className={cn(
         "inline-flex items-center gap-2 rounded-md border border-sidebar-border bg-background px-2 py-1 text-sm shadow-sm hover:bg-accent",
+        hideWhenOpen && open ? "hidden" : undefined,
         className
       )}
     >

@@ -1,12 +1,7 @@
 'use client';
 
 import React, { useMemo, useState } from 'react';
-import {
-  Sidebar,
-  SidebarContent,
-  SidebarFooter,
-  SidebarHeader,
-} from '@/components/ui/sidebar';
+import { Sidebar, SidebarContent, SidebarFooter, SidebarHeader, useSidebar } from '@/components/ui/sidebar';
 import { SegmentedControl } from '@/components/ui/segmented-control';
 import { useThread } from '@assistant-ui/react';
 import type { ThreadMessage } from '@assistant-ui/react';
@@ -20,7 +15,7 @@ import {
   FileText,
   MessagesSquare,
 } from 'lucide-react';
-import { DeepResearchConfigPanel } from './ConfigPanel';
+import { X } from 'lucide-react';
 
 type ActivityItem = {
   id: string;
@@ -417,6 +412,7 @@ function SourcesList({
 }
 
 export function AppSidebar() {
+  const { toggle } = useSidebar();
   const thread = useThread({ optional: true });
   const messages = thread?.messages;
 
@@ -424,7 +420,7 @@ export function AppSidebar() {
     () => extractActivity(messages ?? []),
     [messages]
   );
-  const [tab, setTab] = useState<'activity' | 'sources' | 'settings'>('activity');
+  const [tab, setTab] = useState<'activity' | 'sources'>('activity');
 
   return (
     <Sidebar
@@ -433,23 +429,29 @@ export function AppSidebar() {
       className="border-l border-sidebar-border/60 overflow-x-hidden"
     >
       <SidebarHeader className="border-b border-sidebar-border/60 bg-gradient-to-b from-background to-background/80">
-        <div className="p-4">
+        <div className="flex items-center justify-between p-4">
           <SegmentedControl
             value={tab}
-            onValueChange={(v) => setTab(v as 'activity' | 'sources' | 'settings')}
+            onValueChange={(v) => setTab(v as 'activity' | 'sources')}
             segments={[
               { value: 'activity', label: 'Activity' },
               { value: 'sources', label: 'Sources', badge: sources.length },
-              { value: 'settings', label: 'Settings' },
             ]}
           />
+          <button
+            type="button"
+            aria-label="Close research sidebar"
+            onClick={toggle}
+            className="inline-flex h-7 w-7 items-center justify-center rounded-md border border-sidebar-border bg-background text-foreground/70 hover:text-foreground hover:bg-accent ml-2"
+          >
+            <X className="h-3.5 w-3.5" />
+          </button>
         </div>
       </SidebarHeader>
 
       <SidebarContent className="overflow-x-hidden px-4 py-2">
         {tab === 'activity' && <ActivityList items={activity} />}
         {tab === 'sources' && <SourcesList items={sources} />}
-        {tab === 'settings' && <div className="pb-4"><DeepResearchConfigPanel /></div>}
       </SidebarContent>
 
       <SidebarFooter className="border-t border-sidebar-border/60 bg-gradient-to-t from-background to-background/80">

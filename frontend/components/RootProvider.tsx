@@ -5,8 +5,9 @@ import { AssistantRuntimeProvider } from '@assistant-ui/react';
 import { useLangGraphRuntime } from '@assistant-ui/react-langgraph';
 import { SidebarProvider, SidebarTrigger } from '@/components/ui/sidebar';
 import { AppSidebar } from '@/components/AssistantSidebar';
+import { SettingsSidebar } from '@/components/SettingsSidebar';
 import { createThread, getThreadState, sendMessage } from '@/lib/chatApi';
-import { MessagesSquare } from 'lucide-react';
+import { MessagesSquare, Cog } from 'lucide-react';
 import {
   DeepResearchConfigProvider,
   useDeepResearchConfig,
@@ -39,17 +40,27 @@ function ProvidersInner({ children }: { children: React.ReactNode }) {
 
   return (
     <AssistantRuntimeProvider runtime={runtime}>
+      {/* Left settings sidebar with independent state */}
       <SidebarProvider>
-        {/* Right sidebar for research activity/sources */}
+        <SettingsSidebar />
+        <div className="fixed left-3 top-3 z-30">
+          <SidebarTrigger aria-label="Toggle settings sidebar" hideWhenOpen>
+            <Cog className="h-4 w-4" />
+          </SidebarTrigger>
+        </div>
+      </SidebarProvider>
+
+      {/* Right research sidebar with independent state */}
+      <SidebarProvider>
         <AppSidebar />
-        {/* Simple floating trigger */}
-        <div className="fixed right-3 top-3 z-40">
-          <SidebarTrigger aria-label="Toggle research sidebar">
+        <div className="fixed right-3 top-3 z-30">
+          <SidebarTrigger aria-label="Toggle research sidebar" hideWhenOpen>
             <MessagesSquare className="h-4 w-4" />
           </SidebarTrigger>
         </div>
-        {children}
       </SidebarProvider>
+
+      {children}
     </AssistantRuntimeProvider>
   );
 }
