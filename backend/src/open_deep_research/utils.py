@@ -969,8 +969,10 @@ MODEL_TOKEN_LIMITS = {
     "anthropic:claude-3-5-haiku": 200000,
     "google:gemini-1.5-pro": 2097152,
     "google:gemini-1.5-flash": 1048576,
+    "google_genai:gemini-2.0-flash-lite": 1048576,
     "google_genai:gemini-2.5-pro": 2097152,
     "google_genai:gemini-2.5-flash": 1048576,
+    "google_genai:gemini-2.5-flash-lite": 1048576,
     "google:gemini-pro": 32768,
     "cohere:command-r-plus": 128000,
     "cohere:command-r": 128000,
@@ -994,6 +996,9 @@ MODEL_TOKEN_LIMITS = {
     "bedrock:us.anthropic.claude-opus-4-20250514-v1:0": 200000,
     "anthropic.claude-opus-4-1-20250805-v1:0": 200000,
     "openrouter:deepseek/deepseek-chat-v3.1:free": 64000,
+    "openrouter:qwen/qwen3-coder:free": 264000,
+    "openrouter:moonshotai/kimi-k2:free": 33000,
+    "openrouter:google/gemini-2.0-flash-exp:free": 1000000,
 }
 
 
