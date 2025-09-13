@@ -92,7 +92,9 @@ function findPhaseWindow(messages: readonly ThreadMessage[]) {
 
   messages.forEach((m, i) => {
     if (m.role !== 'assistant') return;
-    const text = messageText(m.content as readonly (AssistantPart | UserPart)[]);
+    const text = messageText(
+      m.content as readonly (AssistantPart | UserPart)[]
+    );
     if (start === null && includesCi(text, 'clarify with user')) start = i;
     if (end === null && includesCi(text, 'final report')) end = i;
   });
@@ -134,7 +136,9 @@ function extractActivity(messages: readonly ThreadMessage[]): {
     const shouldRecordActivity = inWindow(msgIdx);
 
     if (m.role === 'user') {
-      const text = messageText(m.content as readonly (AssistantPart | UserPart)[]);
+      const text = messageText(
+        m.content as readonly (AssistantPart | UserPart)[]
+      );
       if (text && shouldRecordActivity) {
         act.push({ id: m.id, kind: 'user', title: text });
       }
@@ -195,7 +199,11 @@ function extractActivity(messages: readonly ThreadMessage[]): {
       } else if ((part as { type?: string }).type === 'tool-result') {
         // Attempt to collect URLs from tool results (sub-agent searches)
         const bag = new Set<string>();
-        const pr = part as { text?: unknown; result?: unknown; content?: unknown };
+        const pr = part as {
+          text?: unknown;
+          result?: unknown;
+          content?: unknown;
+        };
         if (typeof pr.text === 'string') collectUrlsFromUnknown(pr.text, bag);
         if (pr.result !== undefined) collectUrlsFromUnknown(pr.result, bag);
         if (pr.content !== undefined) collectUrlsFromUnknown(pr.content, bag);
@@ -225,7 +233,7 @@ function ActivityIcon({ kind }: { kind: ActivityItem['kind'] }) {
 
 function ActivityList({ items }: { items: ActivityItem[] }) {
   return (
-    <div className="space-y-3">
+    <div className="space-y-3 overflow-x-hidden">
       {items.map((it, i) => (
         <div key={it.id} className="relative flex items-start pl-10">
           {i !== items.length - 1 && (
@@ -234,12 +242,12 @@ function ActivityList({ items }: { items: ActivityItem[] }) {
           <span className="absolute left-1 top-0 inline-flex h-6 w-6 items-center justify-center rounded-full border border-sidebar-border bg-sidebar-accent text-sidebar-accent-foreground">
             <ActivityIcon kind={it.kind} />
           </span>
-          <div className="flex-1 text-sm">
-            <div className="font-medium leading-6 min-h-[24px] flex items-center">
+          <div className="flex-1 min-w-0 text-sm">
+            <div className="font-medium leading-6 min-h-[24px] break-words">
               {it.title}
             </div>
             {it.description && (
-              <div className="text-foreground/70 line-clamp-2 text-xs leading-6">
+              <div className="text-foreground/70 line-clamp-2 text-xs leading-6 break-words">
                 {it.description}
               </div>
             )}
@@ -262,7 +270,7 @@ function SourcesList({
   items: { id: string; url: string; title?: string }[];
 }) {
   return (
-    <div className="space-y-2">
+    <div className="space-y-2 overflow-x-hidden">
       {items.map((s) => {
         const domain = (() => {
           try {
@@ -277,13 +285,13 @@ function SourcesList({
             href={s.url}
             target="_blank"
             rel="noreferrer"
-            className="block rounded-lg border border-sidebar-border bg-background/40 p-3 hover:bg-accent"
+            className="block rounded-lg border border-sidebar-border bg-background/40 p-3 hover:bg-accent overflow-x-hidden"
           >
             <div className="flex items-center gap-2 text-xs text-foreground/70">
               <LinkIcon className="h-3.5 w-3.5" />
-              <span>{domain}</span>
+              <span className="min-w-0 break-words">{domain}</span>
             </div>
-            <div className="mt-1 line-clamp-2 text-sm font-medium leading-5">
+            <div className="mt-1 line-clamp-2 text-sm font-medium leading-5 break-words">
               {s.title ?? s.url}
             </div>
           </a>
@@ -303,6 +311,8 @@ export function AppSidebar() {
   const thread = useThread({ optional: true });
   const messages = thread?.messages;
 
+  console.log('messages', messages);
+
   const { activity, sources } = useMemo(
     () => extractActivity(messages ?? []),
     [messages]
@@ -310,7 +320,7 @@ export function AppSidebar() {
   const [tab, setTab] = useState<'activity' | 'sources'>('activity');
 
   return (
-    <Sidebar side="right" width="22rem" className="border-l">
+    <Sidebar side="right" width="22rem" className="border-l overflow-x-hidden">
       <SidebarHeader>
         <SegmentedControl
           value={tab}
@@ -321,7 +331,7 @@ export function AppSidebar() {
           ]}
         />
       </SidebarHeader>
-      <SidebarContent>
+      <SidebarContent className="overflow-x-hidden">
         {tab === 'activity' ? (
           <ActivityList items={activity} />
         ) : (
