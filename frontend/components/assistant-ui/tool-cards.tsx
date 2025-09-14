@@ -1,8 +1,19 @@
 'use client';
 
 import type { ToolCallMessagePartComponent } from '@assistant-ui/react';
+import { ThreadPrimitive } from '@assistant-ui/react';
 import { useMemo, useState } from 'react';
-import { Brain, CheckCircle2, Target, Wrench, ChevronDown, ChevronUp, Search, AlertTriangle } from 'lucide-react';
+import {
+  Brain,
+  CheckCircle2,
+  Target,
+  Wrench,
+  ChevronDown,
+  ChevronUp,
+  Search,
+  AlertTriangle,
+} from 'lucide-react';
+import { Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { TooltipIconButton } from '@/components/assistant-ui/tooltip-icon-button';
 
@@ -10,19 +21,27 @@ function tryParseArgs(argsText?: string): Record<string, unknown> | undefined {
   if (!argsText) return undefined;
   try {
     const parsed = JSON.parse(argsText);
-    return typeof parsed === 'object' && parsed !== null ? (parsed as Record<string, unknown>) : undefined;
+    return typeof parsed === 'object' && parsed !== null
+      ? (parsed as Record<string, unknown>)
+      : undefined;
   } catch {
     return undefined;
   }
 }
 
-function getString(obj: Record<string, unknown> | undefined, key: string): string | undefined {
+function getString(
+  obj: Record<string, unknown> | undefined,
+  key: string
+): string | undefined {
   if (!obj) return undefined;
   const v = obj[key];
   return typeof v === 'string' ? v : undefined;
 }
 
-function getBoolean(obj: Record<string, unknown> | undefined, key: string): boolean | undefined {
+function getBoolean(
+  obj: Record<string, unknown> | undefined,
+  key: string
+): boolean | undefined {
   if (!obj) return undefined;
   const v = obj[key];
   return typeof v === 'boolean' ? v : undefined;
@@ -175,7 +194,8 @@ export const ClarifyWithUserCard: ToolCallMessagePartComponent = ({
 }) => {
   const args = tryParseArgs(argsText);
   const need = Boolean(getBoolean(args, 'need_clarification'));
-  const verification: string | undefined = getString(args, 'verification') || getString(args, 'question');
+  const verification: string | undefined =
+    getString(args, 'verification') || getString(args, 'question');
   return (
     <div
       className={
@@ -204,7 +224,7 @@ export const ResearchQuestionCard: ToolCallMessagePartComponent = ({
   const args = tryParseArgs(argsText);
   const brief: string | undefined = getString(args, 'research_brief');
   return (
-    <div className="mb-5 rounded-2xl border bg-gradient-to-br from-sky-50 to-transparent p-4 dark:from-sky-900/20 dark:to-transparent">
+    <div className="mb-5 rounded-2xl border bg-gradient-to-br from-sky-50 to-transparent p-4 dark:from-sky-900/20 dark:to-transparent mt-4">
       <div className="mb-2 flex items-center gap-2">
         <span className="inline-flex h-7 w-7 items-center justify-center rounded-full border border-sky-400/40 bg-sky-500/10 text-sky-700 dark:text-sky-300">
           <Target className="h-3.5 w-3.5" />
@@ -216,6 +236,20 @@ export const ResearchQuestionCard: ToolCallMessagePartComponent = ({
       ) : (
         <div className="text-foreground/70 text-sm">No brief provided.</div>
       )}
+      {/* While the agent is running (delegating research or waiting on tools), show progress */}
+      <ThreadPrimitive.If running>
+        <div className="mt-3 inline-flex items-center gap-2 rounded-md border bg-background/70 px-2.5 py-1.5 text-xs text-foreground/70">
+          <Loader2 className="h-3.5 w-3.5 animate-spin text-sky-600" />
+          <span>Conducting research…</span>
+        </div>
+      </ThreadPrimitive.If>
+      {/* When not running anymore, indicate research completed */}
+      <ThreadPrimitive.If running={false}>
+        <div className="mt-3 inline-flex items-center gap-2 rounded-md border bg-background/70 px-2.5 py-1.5 text-xs text-foreground/70">
+          <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" />
+          <span>Research complete</span>
+        </div>
+      </ThreadPrimitive.If>
     </div>
   );
 };
@@ -243,6 +277,7 @@ export const ConductResearchCard: ToolCallMessagePartComponent = ({
   const topic: string | undefined = getString(args, 'research_topic');
   const resultText: string | undefined =
     typeof result === 'string' ? result : undefined;
+  const isLoading = typeof result === 'undefined';
 
   const { urls, queries } = useMemo(() => {
     return {
@@ -326,6 +361,12 @@ export const ConductResearchCard: ToolCallMessagePartComponent = ({
                 </TooltipIconButton>
               </div>
             )}
+            {isLoading && (
+              <div className="mt-2 inline-flex items-center gap-2 rounded-full border bg-background/70 px-2.5 py-1 text-[11px] text-foreground/70">
+                <Loader2 className="h-3 w-3 animate-spin text-foreground/70" />
+                <span>Researching…</span>
+              </div>
+            )}
           </div>
         </div>
         <div className="flex shrink-0 items-center gap-2">
@@ -346,7 +387,11 @@ export const ConductResearchCard: ToolCallMessagePartComponent = ({
         <div>
           <Section title={queries.length <= 1 ? 'Query' : 'Queries'} />
           <div className="mt-2 flex flex-col gap-2">
-            {queries.length > 0 ? (
+            {isLoading ? (
+              <div className="text-foreground/60 rounded-lg border border-dashed px-3 py-2 text-xs">
+                Waiting for queries…
+              </div>
+            ) : queries.length > 0 ? (
               queries.map((q, i) => (
                 <div
                   key={`${q}-${i}`}
@@ -365,7 +410,15 @@ export const ConductResearchCard: ToolCallMessagePartComponent = ({
 
         <div>
           <Section title="Sources" />
-          <div className="mt-2">{sourceCards}</div>
+          <div className="mt-2">
+            {isLoading ? (
+              <div className="text-foreground/60 rounded-md border border-dashed p-2 text-xs">
+                Gathering sources…
+              </div>
+            ) : (
+              sourceCards
+            )}
+          </div>
         </div>
       </div>
 

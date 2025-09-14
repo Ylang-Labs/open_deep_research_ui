@@ -1,9 +1,15 @@
 'use client';
 
 import React, { useMemo, useState } from 'react';
-import { Sidebar, SidebarContent, SidebarFooter, SidebarHeader, useSidebar } from '@/components/ui/sidebar';
+import {
+  Sidebar,
+  SidebarContent,
+  SidebarFooter,
+  SidebarHeader,
+  useSidebar,
+} from '@/components/ui/sidebar';
 import { SegmentedControl } from '@/components/ui/segmented-control';
-import { useThread } from '@assistant-ui/react';
+import { useThread, ThreadPrimitive } from '@assistant-ui/react';
 import type { ThreadMessage } from '@assistant-ui/react';
 import { cn } from '@/lib/utils';
 import {
@@ -14,6 +20,7 @@ import {
   Link as LinkIcon,
   FileText,
   MessagesSquare,
+  CheckCircle2,
 } from 'lucide-react';
 import { X } from 'lucide-react';
 
@@ -156,6 +163,23 @@ function extractActivity(messages: readonly ThreadMessage[]): {
             description: args,
           });
         }
+
+        // Sources: Some versions of @assistant-ui/react include the tool result
+        // on the tool-call part itself (older API). Attempt to extract URLs
+        // from any result-like fields to sync sources as soon as research returns.
+        const tc = part as unknown as {
+          result?: unknown;
+          resultText?: unknown;
+          text?: unknown;
+          content?: unknown;
+        };
+        const bag = new Set<string>();
+        if (tc.result !== undefined) collectUrlsFromUnknown(tc.result, bag);
+        if (tc.resultText !== undefined)
+          collectUrlsFromUnknown(tc.resultText, bag);
+        if (tc.text !== undefined) collectUrlsFromUnknown(tc.text, bag);
+        if (tc.content !== undefined) collectUrlsFromUnknown(tc.content, bag);
+        bag.forEach((u) => collectSource(u));
       } else if (part.type === 'reasoning') {
         // Activity: show reasoning within window
         const t = (part.text ?? 'Thinking...').trim();
@@ -249,10 +273,7 @@ function ActivityList({ items }: { items: ActivityItem[] }) {
 
           {/* Enhanced activity icon with better visual hierarchy */}
           <span
-            className={cn(
-              'absolute left-0 top-0.5',
-              getActivityIconStyles()
-            )}
+            className={cn('absolute left-0 top-0.5', getActivityIconStyles())}
           >
             <ActivityIcon kind={it.kind} />
           </span>
@@ -313,6 +334,9 @@ function SourcesList({
             return s.url;
           }
         })();
+        const favicon = `https://www.google.com/s2/favicons?sz=64&domain_url=${encodeURIComponent(
+          s.url
+        )}`;
 
         // Determine domain (reserved for future visual tweaks)
 
@@ -336,14 +360,13 @@ function SourcesList({
             <div className="relative p-4">
               {/* Header with enhanced domain styling */}
               <div className="flex items-center gap-2.5 mb-2.5">
-                <div
-                  className={cn(
-                    'flex h-6 w-6 items-center justify-center rounded-md transition-colors duration-200',
-                    'bg-sidebar-accent/60 group-hover:bg-sidebar-accent'
-                  )}
-                >
-                  <LinkIcon className="h-3 w-3" />
-                </div>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={favicon}
+                  alt=""
+                  loading="lazy"
+                  className="h-5 w-5 rounded-sm border border-sidebar-border/60"
+                />
                 <span
                   className={cn(
                     'text-xs font-medium tracking-wide transition-colors duration-200',
@@ -422,6 +445,12 @@ export function AppSidebar() {
   );
   const [tab, setTab] = useState<'activity' | 'sources'>('activity');
 
+  // Heuristic: if we have any research-related activity or sources, consider research done
+  const hasResearchActivity = useMemo(
+    () => activity.some((a) => a.kind === 'tool') || sources.length > 0,
+    [activity, sources]
+  );
+
   return (
     <Sidebar
       side="right"
@@ -457,10 +486,31 @@ export function AppSidebar() {
       <SidebarFooter className="border-t border-sidebar-border/60 bg-gradient-to-t from-background to-background/80">
         <div className="flex items-center justify-between p-4">
           <div className="flex items-center gap-2">
-            <div className="h-2 w-2 rounded-full bg-green-500/80 animate-pulse" />
-            <span className="text-xs font-medium text-foreground/70">
-              Deep Research
-            </span>
+            <ThreadPrimitive.If running>
+              <div className="flex items-center gap-2">
+                <Loader2 className="h-3.5 w-3.5 animate-spin text-foreground/70" />
+                <span className="text-xs font-medium text-foreground/70">
+                  Researching…
+                </span>
+              </div>
+            </ThreadPrimitive.If>
+            <ThreadPrimitive.If running={false}>
+              {hasResearchActivity ? (
+                <div className="flex items-center gap-2">
+                  <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" />
+                  <span className="text-xs font-medium text-foreground/70">
+                    Research complete
+                  </span>
+                </div>
+              ) : (
+                <div className="flex items-center gap-2">
+                  <div className="h-2 w-2 rounded-full bg-muted-foreground/50" />
+                  <span className="text-xs font-medium text-foreground/70">
+                    Idle
+                  </span>
+                </div>
+              )}
+            </ThreadPrimitive.If>
           </div>
           <div className="text-xs text-foreground/50 font-mono">
             {activity.length} events • {sources.length} sources
