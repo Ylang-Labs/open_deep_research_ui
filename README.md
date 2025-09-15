@@ -12,6 +12,12 @@ _Built with ❤️ by [@artreimus](https://github.com/artreimus) from [Ylang Lab
 
 ![Settings Panel](./app-3.png)
 
+![Research Complete](./public/app-research-complete.png)
+
+![Research Interactive](./public/app-research-interactive.png)
+
+![App Settings](./public/app-settings.png)
+
 ## 🏗️ Monorepo Layout
 
 - `backend/` — LangGraph server for Open Deep Research (Python, `uv`, `langgraph-cli`)
