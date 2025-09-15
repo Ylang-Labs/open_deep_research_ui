@@ -4,19 +4,17 @@ _Built with ❤️ by [@artreimus](https://github.com/artreimus) from [Ylang Lab
 
 > **A powerful, full-stack deep research application** - Combining a LangGraph backend and a Next.js assistant-UI frontend to deliver comprehensive research capabilities with multiple model providers, search APIs, and optional MCP servers. Local dev friendly; can target LangGraph Cloud/Platform or self-hosted servers.
 
-## 📸 Demo
+## 📸 App
 
-![Main Interface](./app-1.png)
+![Demo](./public/demo.gif)
 
-![Research Results](./app-2.png)
+![App Settings](./public/main-interface.png)
 
-![Settings Panel](./app-3.png)
+![App Settings](./public/app-settings.png)
 
 ![Research Complete](./public/app-research-complete.png)
 
 ![Research Interactive](./public/app-research-interactive.png)
-
-![App Settings](./public/app-settings.png)
 
 ## 🏗️ Monorepo Layout
 
